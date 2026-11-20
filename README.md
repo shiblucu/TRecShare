@@ -6,6 +6,19 @@ camera and voice, then share a link from **your own** storage: Google Drive, Dig
 
 Everything stays on your Mac unless you set up an upload. No account, no analytics, no tracking.
 
+<!-- SCREENSHOTS: save images in docs/images/ and uncomment, for example:
+<p align="center">
+  <img src="docs/images/recorder.png" alt="TRecShare recorder panel in the menu bar" width="420">
+  <img src="docs/images/review.png" alt="Review window with trim and upload" width="420">
+</p>
+-->
+
+> **Status: 1.0, early release.** Recording, review, trimming and local saving are tested on real
+> recordings. The upload destinations (Google Drive, DigitalOcean Spaces / S3, your own server) are **beta**:
+> the upload code is covered by automated tests and local mock servers, but has not yet been run against
+> every real service. If an upload fails, the recording is never lost, so please
+> [open an issue](https://github.com/shiblucu/TRecShare/issues) with the error message shown.
+
 ## Contents
 
 1. [Features](#features)
@@ -533,6 +546,7 @@ place of `trecshare`.
 - Screenshots are saved locally and copied to the clipboard; they aren't uploaded.
 - Window recordings don't include the camera.
 - Recordings can only be uploaded after they finish; an upload interrupted by quitting the app must be started again.
+- Uploads to Google Drive, Spaces / S3 and your own server are beta (see the status note at the top).
 - Local builds are not notarized, so they are meant for the Mac they were built on.
 
 ---
