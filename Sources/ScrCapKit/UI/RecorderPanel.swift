@@ -40,7 +40,7 @@ struct RecorderPanel: View {
                         Toggle("3-second countdown", isOn: $settings.countdownEnabled).toggleStyle(.checkbox)
                         Spacer()
                         if settings.hotkeysEnabled {
-                            Text("\(HotKeys.toggleRecording.display) record · \(HotKeys.screenshot.display) screenshot").foregroundStyle(.tertiary)
+                            Text("\(HotKeys.toggleRecording.display) record · \(HotKeys.screenshot.display) screenshot").foregroundStyle(.secondary)
                         }
                     }
                     .font(.caption)
@@ -145,7 +145,7 @@ struct RecorderPanel: View {
                     }
                     .labelsHidden()
                     Text("The camera isn't included in window recordings.")
-                        .font(.caption2).foregroundStyle(.tertiary)
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }

@@ -120,6 +120,16 @@ extension URL {
     }
 }
 
+/// Spoken feedback for VoiceOver users (recording started, paused, errors…).
+enum Accessibility {
+    @MainActor
+    static func announce(_ text: String) {
+        guard !text.isEmpty else { return }
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+    }
+}
+
 enum Pasteboard {
     static func copy(_ string: String) {
         NSPasteboard.general.clearContents()

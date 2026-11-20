@@ -57,6 +57,7 @@ private struct ControlBarView: View {
     private enum Confirm { case delete, restart }
     @State private var confirm: Confirm?
     @State private var blink = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 4) {
@@ -111,6 +112,7 @@ private struct ControlBarView: View {
         .disabled(model.state == .finishing)
         .onChange(of: confirm) { _, _ in ControlBar.refit() }
         .onAppear {
+            guard !reduceMotion else { return }   // no blinking for people who turned on Reduce Motion
             withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { blink = true }
         }
     }

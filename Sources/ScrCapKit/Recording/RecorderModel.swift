@@ -50,10 +50,14 @@ final class RecorderModel: ObservableObject {
     @Published var selectedWindowID: CGWindowID?
 
     // Status
-    @Published private(set) var state: RecorderState = .idle
+    @Published private(set) var state: RecorderState = .idle {
+        didSet { if state != oldValue { announceState(from: oldValue) } }
+    }
     @Published private(set) var elapsed: TimeInterval = 0
     @Published private(set) var lastRecording: URL?
-    @Published var errorMessage: String?
+    @Published var errorMessage: String? {
+        didSet { if let message = errorMessage, message != oldValue { Accessibility.announce(message) } }
+    }
     @Published private(set) var needsScreenPermission = false
     @Published private(set) var needsMicrophonePermission = false
     @Published private(set) var needsCameraPermission = false
@@ -284,6 +288,7 @@ final class RecorderModel: ObservableObject {
             state = .idle
             targetScreen = nil
             updateCameraBubble()
+            Accessibility.announce("Recording deleted")
         }
     }
 
@@ -593,6 +598,7 @@ final class RecorderModel: ObservableObject {
         do {
             let saved = try await recorder.finish(to: url)
             lastRecording = saved
+            Accessibility.announce("Recording saved")
             Log.recorder.info("recording saved")
             afterRecording(saved)
         } catch {
@@ -646,6 +652,18 @@ final class RecorderModel: ObservableObject {
     static func freeSpace(at url: URL) -> Int64? {
         (try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
             .volumeAvailableCapacityForImportantUsage
+    }
+
+    /// VoiceOver announcements for each step, so the recording state is clear without looking.
+    private func announceState(from old: RecorderState) {
+        switch state {
+        case .selectingArea: Accessibility.announce("Drag to select the area. Press Return for the whole screen, Escape to cancel.")
+        case .countdown(let n): Accessibility.announce(n == 3 ? "Recording starts in 3" : "\(n)")
+        case .recording: Accessibility.announce(old == .paused ? "Recording resumed" : "Recording")
+        case .paused: Accessibility.announce("Paused")
+        case .finishing: Accessibility.announce("Saving recording")
+        default: break
+        }
     }
 
     // MARK: - Timer

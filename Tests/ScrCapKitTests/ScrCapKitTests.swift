@@ -170,3 +170,30 @@ struct AudioLevelerTests {
         #expect(AudioLeveler.limit(0.9) > AudioLeveler.limit(0.7))   // still monotonic
     }
 }
+
+@Suite("Storage settings validation")
+struct S3ValidationTests {
+    @Test func acceptsNormalSettings() throws {
+        #expect(try S3Validation.bucket("my-videos") == "my-videos")
+        #expect(try S3Validation.endpoint("nyc3.digitaloceanspaces.com", bucket: "b") == "nyc3.digitaloceanspaces.com")
+        #expect(try S3Validation.endpoint("https://NYC3.digitaloceanspaces.com/", bucket: "b") == "nyc3.digitaloceanspaces.com")
+        #expect(try S3Validation.endpoint("my-videos.nyc3.digitaloceanspaces.com", bucket: "my-videos") == "nyc3.digitaloceanspaces.com")
+        #expect(try S3Validation.endpoint("minio.example.com:9000", bucket: "b") == "minio.example.com:9000")
+        #expect(try S3Validation.region("", endpoint: "fra1.digitaloceanspaces.com") == "fra1")
+        #expect(try S3Validation.prefix("/recordings/clients/") == "recordings/clients")
+        #expect(try S3Validation.prefix("") == "")
+    }
+
+    @Test func rejectsHostTricksAndPathTraversal() {
+        #expect(throws: UploadError.self) { try S3Validation.endpoint("http://nyc3.digitaloceanspaces.com", bucket: "b") }
+        #expect(throws: UploadError.self) { try S3Validation.endpoint("evil.com@nyc3.digitaloceanspaces.com", bucket: "b") }
+        #expect(throws: UploadError.self) { try S3Validation.endpoint("nyc3.digitaloceanspaces.com/path", bucket: "b") }
+        #expect(throws: UploadError.self) { try S3Validation.endpoint("nyc3.digitaloceanspaces.com#x", bucket: "b") }
+        #expect(throws: UploadError.self) { try S3Validation.endpoint("localhost", bucket: "b") }
+        #expect(throws: UploadError.self) { try S3Validation.bucket("My_Bucket") }
+        #expect(throws: UploadError.self) { try S3Validation.bucket("a..b") }
+        #expect(throws: UploadError.self) { try S3Validation.region("nyc3/../x", endpoint: "e.com") }
+        #expect(throws: UploadError.self) { try S3Validation.prefix("recordings/../secrets") }
+        #expect(throws: UploadError.self) { try S3Validation.prefix("a/b?c") }
+    }
+}

@@ -46,7 +46,12 @@ enum Keychain {
         return status == errSecSuccess || status == errSecItemNotFound
     }
 
-    static func has(_ key: Key) -> Bool { !(get(key) ?? "").isEmpty }
+    /// Checks that an item exists without reading the secret itself.
+    static func has(_ key: Key) -> Bool {
+        var query = baseQuery(key)
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
+    }
 
     private static func baseQuery(_ key: Key) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,

@@ -28,6 +28,7 @@ struct ReviewView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     TextField("Title", text: $title)
+                        .accessibilityLabel("Recording title")
                         .textFieldStyle(.plain)
                         .font(.title2.weight(.semibold))
                         .onSubmit(rename)

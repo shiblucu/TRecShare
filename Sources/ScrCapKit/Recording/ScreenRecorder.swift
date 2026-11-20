@@ -11,11 +11,14 @@ import ScreenCaptureKit
 final class ScreenRecorder: NSObject {
     enum RecorderError: LocalizedError {
         case alreadyRunning, notStarted, noFileWritten
+        case joinFailed(partsSaved: Int, reason: String)
         var errorDescription: String? {
             switch self {
             case .alreadyRunning: return "A recording is already running."
             case .notStarted: return "Nothing is being recorded."
             case .noFileWritten: return "Nothing was recorded, so no file was saved."
+            case let .joinFailed(parts, reason):
+                return "The recording parts couldn't be joined (\(reason)). All \(parts) parts were saved separately in your recordings folder."
             }
         }
     }
@@ -38,12 +41,28 @@ final class ScreenRecorder: NSObject {
     private var stoppingOnPurpose = false
     private let sampleQueue = DispatchQueue(label: "scrcapkit.screen-samples")
 
-    var hasSession: Bool { workDir != nil }
+    /// Every public operation runs after the previous one has fully finished, so a quick
+    /// pause → resume (or resume → finish) can never overlap and clobber the active stream.
+    private var lastOperation: Task<Void, Never>?
+
+    private func serialized<T>(_ body: @escaping @MainActor () async throws -> T) async throws -> T {
+        let previous = lastOperation
+        let task = Task { @MainActor () async throws -> T in
+            await previous?.value
+            return try await body()
+        }
+        lastOperation = Task { _ = try? await task.value }
+        return try await task.value
+    }
 
     // MARK: - Public API
 
     /// Starts a new recording session. `outputURL` is only used to place the temporary files on the same disk.
     func start(filter: SCContentFilter, configuration: SCStreamConfiguration, near outputURL: URL) async throws {
+        try await serialized { try await self.startSession(filter: filter, configuration: configuration, near: outputURL) }
+    }
+
+    private func startSession(filter: SCContentFilter, configuration: SCStreamConfiguration, near outputURL: URL) async throws {
         guard workDir == nil else { throw RecorderError.alreadyRunning }
         let folder = outputURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -62,32 +81,68 @@ final class ScreenRecorder: NSObject {
     }
 
     func pause() async {
-        guard isCapturing else { return }
-        await stopSegment()
+        _ = try? await serialized {
+            guard self.isCapturing else { return }
+            await self.stopSegment()
+        }
     }
 
     func resume() async throws {
-        guard workDir != nil, !isCapturing else { return }
-        try await startSegment()
+        try await serialized {
+            guard self.workDir != nil, !self.isCapturing else { return }
+            try await self.startSegment()
+        }
     }
 
     /// Stops capture and writes the finished MP4 to `outputURL`.
+    /// If joining the parts fails, the parts are kept in the same folder so nothing recorded is lost.
     func finish(to outputURL: URL) async throws -> URL {
+        try await serialized { try await self.finishSession(to: outputURL) }
+    }
+
+    private func finishSession(to outputURL: URL) async throws -> URL {
         guard workDir != nil else { throw RecorderError.notStarted }
         await stopSegment()
         await waitForSegmentFile()
         let usable = segments.filter { $0.fileSize > 0 }
-        defer { cleanUp() }
-        guard !usable.isEmpty else { throw segmentError ?? RecorderError.noFileWritten }
-        try await SegmentMerger.merge(usable, to: outputURL)
+        guard !usable.isEmpty else {
+            cleanUp()
+            throw segmentError ?? RecorderError.noFileWritten
+        }
+        do {
+            try await SegmentMerger.merge(usable, to: outputURL)
+        } catch {
+            let saved = salvage(usable, near: outputURL)
+            cleanUp()
+            Log.recorder.error("join failed, kept \(saved) parts: \(error.localizedDescription)")
+            throw RecorderError.joinFailed(partsSaved: saved, reason: error.localizedDescription)
+        }
+        cleanUp()
         return outputURL
+    }
+
+    /// Moves the recorded parts next to `outputURL` as "<name> (part N).mp4". Returns how many were kept.
+    private func salvage(_ parts: [URL], near outputURL: URL) -> Int {
+        let folder = outputURL.deletingLastPathComponent()
+        let base = outputURL.deletingPathExtension().lastPathComponent
+        var kept = 0
+        for (i, part) in parts.enumerated() {
+            let dest = FileNames.unique(in: folder, base: "\(base) (part \(i + 1))", ext: "mp4")
+            if (try? FileManager.default.moveItem(at: part, to: dest)) != nil {
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: dest.path)
+                kept += 1
+            }
+        }
+        return kept
     }
 
     /// Stops and throws away everything recorded in this session.
     func cancel() async {
-        await stopSegment()
-        await waitForSegmentFile()
-        cleanUp()
+        _ = try? await serialized {
+            await self.stopSegment()
+            await self.waitForSegmentFile()
+            self.cleanUp()
+        }
     }
 
     // MARK: - Segments
@@ -135,7 +190,7 @@ final class ScreenRecorder: NSObject {
         } catch {
             Log.recorder.error("stopCapture failed: \(error.localizedDescription)")
         }
-        stream = nil
+        if stream === activeStream { stream = nil }
         await waitForSegmentFile()
         recordingOutput = nil
     }

@@ -97,6 +97,22 @@ private struct RecordingCard: View {
     @State private var hovering = false
 
     var body: some View {
+        Button { WindowRouter.shared.showReview(item.url) } label: { card }
+            .buttonStyle(.plain)
+            .contextMenu { menu }
+            .help("Open \(item.title)")
+            .accessibilityLabel(accessibilityText)
+            .accessibilityHint("Opens the recording. More actions in the context menu.")
+    }
+
+    private var accessibilityText: String {
+        var parts = [item.title, item.date.formatted(date: .abbreviated, time: .shortened), Format.bytes(item.size)]
+        if let duration { parts.insert("\(Format.duration(duration)) long", at: 1) }
+        if uploads.record(for: item.url) != nil { parts.append("shared") }
+        return parts.joined(separator: ", ")
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottomTrailing) {
                 Rectangle().fill(Color.black.opacity(0.85))
@@ -124,7 +140,6 @@ private struct RecordingCard: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .onTapGesture { WindowRouter.shared.showReview(item.url) }
 
             Text(item.title).font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.middle)
             HStack(spacing: 6) {
@@ -139,15 +154,12 @@ private struct RecordingCard: View {
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(hovering ? 0.07 : 0.035)))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { hovering = $0 }
-        .contextMenu { menu }
         .task(id: item.url) {
             thumbnail = await ThumbnailCache.shared.image(for: item.url)
             duration = await MediaInfo.load(item.url)?.duration
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction { WindowRouter.shared.showReview(item.url) }
     }
 
     @ViewBuilder

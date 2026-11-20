@@ -23,6 +23,8 @@ enum AreaSelector {
             w.isReleasedWhenClosed = false
             w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             let view = SelectionView(frame: NSRect(origin: .zero, size: screen.frame.size))
+            view.setAccessibilityRole(.group)
+            view.setAccessibilityLabel("Area selection. Drag to select the area. Press Return for the whole screen, Escape to cancel.")
             view.onDone = { local in
                 finish(local.map { $0.offsetBy(dx: screen.frame.minX, dy: screen.frame.minY) })
             }
@@ -206,13 +208,14 @@ enum CountdownOverlay {
 
     struct CountdownView: View {
         @ObservedObject var model: CountdownModel
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
         var body: some View {
             VStack(spacing: 6) {
                 Text("\(model.value)")
                     .font(.system(size: 96, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText(countsDown: true))
-                    .animation(.snappy, value: model.value)
+                    .animation(reduceMotion ? nil : .snappy, value: model.value)
                 Text("Click to cancel").font(.callout).opacity(0.8)
             }
             .foregroundStyle(.white)

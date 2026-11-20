@@ -107,7 +107,7 @@ final class CameraBubble: NSObject {
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.title = "Camera"
-        panel.setAccessibilityLabel("Camera bubble")
+        panel.setAccessibilityLabel("Camera preview. Drag to move. Right-click for shape and size.")
         panel.contentView = BubbleView()
         return panel
     }

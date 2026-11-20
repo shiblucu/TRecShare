@@ -73,8 +73,13 @@ final class RecordingLibrary: ObservableObject {
         let fd = open(folder.path, O_EVTONLY)
         guard fd >= 0 else { return }
         let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete], queue: .main)
-        src.setEventHandler { [weak self] in
+        src.setEventHandler { [weak self, weak src] in
             MainActor.assumeIsolated {
+                // Folder deleted or renamed: drop this watcher; refresh() attaches a new one.
+                if let events = src?.data, !events.intersection([.delete, .rename]).isEmpty {
+                    self?.source?.cancel()
+                    self?.source = nil
+                }
                 self?.debounce?.cancel()
                 self?.debounce = Task { [weak self] in
                     try? await Task.sleep(for: .milliseconds(400))

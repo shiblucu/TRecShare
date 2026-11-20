@@ -30,7 +30,7 @@ enum SharePage {
         <meta name="twitter:card" content="summary_large_image">
         \(og)
         <style>
-          :root { --bg:#f6f6f4; --card:#fff; --text:#1d1d1f; --muted:#6e6e73; --line:rgba(0,0,0,.08); --accent:#3d78d9; }
+          :root { --bg:#f6f6f4; --card:#fff; --text:#1d1d1f; --muted:#6e6e73; --line:rgba(0,0,0,.08); --accent:#2e6bd3; }
           @media (prefers-color-scheme: dark) { :root { --bg:#121214; --card:#1c1c1f; --text:#f5f5f7; --muted:#a1a1a6; --line:rgba(255,255,255,.1); } }
           * { box-sizing: border-box; }
           body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }

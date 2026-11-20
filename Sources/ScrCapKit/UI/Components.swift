@@ -2,9 +2,10 @@ import AppKit
 import SwiftUI
 
 enum Theme {
-    /// Calm, trustworthy blue used for the brand, buttons and the recording indicator (#3D78D9).
-    static let accent = Color(red: 0.239, green: 0.471, blue: 0.851)
-    static let nsAccent = NSColor(srgbRed: 0.239, green: 0.471, blue: 0.851, alpha: 1)
+    /// Calm, trustworthy blue for the brand, buttons and the recording indicator (#2E6BD3).
+    /// White text on it has a 5:1 contrast ratio (meets WCAG AA).
+    static let accent = Color(red: 0.180, green: 0.420, blue: 0.827)
+    static let nsAccent = NSColor(srgbRed: 0.180, green: 0.420, blue: 0.827, alpha: 1)
     /// Softer tint for selected backgrounds.
     static let accentSoft = accent.opacity(0.12)
 }

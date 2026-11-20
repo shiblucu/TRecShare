@@ -32,7 +32,10 @@ struct ServerUploader: Uploader {
             var key: String?
             let keyPath = (s.serverKeyPath.trimmed as NSString).expandingTildeInPath
             if !s.serverKeyPath.trimmed.isEmpty {
-                guard FileManager.default.isReadableFile(atPath: keyPath) else { throw UploadError("The SSH key file can't be read.") }
+                // Absolute path only, so the value can never be read by sftp as an option.
+                guard keyPath.hasPrefix("/"), FileManager.default.isReadableFile(atPath: keyPath) else {
+                    throw UploadError("The SSH key file can't be read. Choose it with the Choose… button.")
+                }
                 key = keyPath
             }
             return ServerUploader(method: .sftp(host: host, port: s.serverPort, user: user, remotePath: path, keyPath: key),

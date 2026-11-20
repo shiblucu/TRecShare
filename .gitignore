@@ -4,3 +4,8 @@ build/
 .DS_Store
 *.xcodeproj/xcuserdata/
 _to_delete/
+
+# Release artifacts
+*.dmg
+*.zip
+*.xcarchive

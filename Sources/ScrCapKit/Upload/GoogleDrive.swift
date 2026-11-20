@@ -258,7 +258,7 @@ struct DriveClient: Sendable {
 
     /// Returns the ID of the app's "ScrCapKit" folder, creating it if needed.
     func ensureFolder(knownID: String) async throws -> String {
-        if !knownID.isEmpty,
+        if !knownID.isEmpty, knownID.range(of: #"^[A-Za-z0-9_-]{10,200}$"#, options: .regularExpression) != nil,
            let file = try? await json("GET", "https://www.googleapis.com/drive/v3/files/\(knownID)?fields=id,trashed"),
            (file["trashed"] as? Bool) == false {
             return knownID
@@ -381,7 +381,10 @@ struct DriveUploader: Uploader {
         let (id, webLink) = try await client.uploadFile(item.file, name: name, folderID: folder) { progress($0 * 0.98) }
         if anyoneWithLink { try await client.shareWithAnyone(fileID: id) }
         progress(1)
-        let link = URL(string: webLink ?? "https://drive.google.com/file/d/\(id)/view")!
+        let fallback = "https://drive.google.com/file/d/\(SigV4.encode(id))/view"
+        guard let link = webLink.flatMap(URL.init(string:)).flatMap({ $0.scheme == "https" ? $0 : nil }) ?? URL(string: fallback) else {
+            throw UploadError("Google Drive didn't return a usable link.")
+        }
         return UploadResult(destination: UploadDestination.drive.rawValue, link: link, videoURL: nil,
                             remoteID: id, uploadedAt: Date(), expiresAt: nil)
     }

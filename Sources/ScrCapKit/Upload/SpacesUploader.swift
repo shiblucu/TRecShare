@@ -223,30 +223,18 @@ struct SpacesUploader: Uploader {
     @MainActor
     static func fromSettings() throws -> SpacesUploader {
         let s = AppSettings.shared
-        var endpoint = s.spacesEndpoint.trimmed.lowercased()
-        if endpoint.hasPrefix("http://") { throw UploadError("The Spaces endpoint must use https.") }
-        if endpoint.hasPrefix("https://") { endpoint.removeFirst("https://".count) }
-        while endpoint.hasSuffix("/") { endpoint.removeLast() }
-        let bucket = s.spacesBucket.trimmed
-        guard !endpoint.isEmpty, !endpoint.contains("/"), !bucket.isEmpty else {
-            throw UploadError("Enter the Spaces endpoint (like nyc3.digitaloceanspaces.com) and bucket name.")
-        }
-        // A "bucket.endpoint" entry is a common mistake: strip the bucket part.
-        if endpoint.hasPrefix(bucket.lowercased() + ".") { endpoint.removeFirst(bucket.count + 1) }
+        let bucket = try S3Validation.bucket(s.spacesBucket)
+        let endpoint = try S3Validation.endpoint(s.spacesEndpoint, bucket: bucket)
         guard let secret = Keychain.get(.spacesSecret), !s.spacesAccessKey.trimmed.isEmpty else {
             throw UploadError("Add your Spaces access key and secret in Settings → Uploads.")
         }
-        var region = s.spacesRegion.trimmed
-        if region.isEmpty { region = endpoint.components(separatedBy: ".").first ?? "us-east-1" }
+        let region = try S3Validation.region(s.spacesRegion, endpoint: endpoint)
         let signer = SigV4(accessKey: s.spacesAccessKey.trimmed, secretKey: secret, region: region)
         if !s.spacesPublicBaseURL.trimmed.isEmpty {
             _ = try HTTP.validatedURL(s.spacesPublicBaseURL, what: "The public / CDN URL")
         }
-        var prefix = s.spacesPrefix.trimmed
-        while prefix.hasPrefix("/") { prefix.removeFirst() }
-        while prefix.hasSuffix("/") { prefix.removeLast() }
         return SpacesUploader(client: S3Client(endpoint: endpoint, bucket: bucket, pathStyle: s.spacesPathStyle, signer: signer),
-                              prefix: prefix, publicBaseURL: s.spacesPublicBaseURL.trimmed,
+                              prefix: try S3Validation.prefix(s.spacesPrefix), publicBaseURL: s.spacesPublicBaseURL.trimmed,
                               access: s.spacesLinkAccess, createSharePage: s.createSharePage)
     }
 
@@ -300,5 +288,49 @@ struct SpacesUploader: Uploader {
         try await client.putData(Data("ok".utf8), key: key, contentType: "text/plain", acl: "private")
         try? await client.delete(key: key)
         return "Connected to \(client.bucket). Uploads will work."
+    }
+}
+
+/// Strict checks for user-entered storage settings. They end up in the request's host name and
+/// object keys, so anything unexpected (user-info, ports in odd places, "..", spaces) is rejected.
+enum S3Validation {
+    static func bucket(_ raw: String) throws -> String {
+        let b = raw.trimmed
+        guard b.range(of: #"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"#, options: .regularExpression) != nil, !b.contains("..") else {
+            throw UploadError("The bucket name isn't valid. Use 3–63 lowercase letters, numbers, dots or dashes.")
+        }
+        return b
+    }
+
+    /// Host (and optional port) only. Accepts "https://host/" and strips a leading "bucket.".
+    static func endpoint(_ raw: String, bucket: String) throws -> String {
+        var e = raw.trimmed.lowercased()
+        if e.hasPrefix("http://") { throw UploadError("The storage endpoint must use https.") }
+        if e.hasPrefix("https://") { e.removeFirst("https://".count) }
+        while e.hasSuffix("/") { e.removeLast() }
+        if e.hasPrefix(bucket + ".") { e.removeFirst(bucket.count + 1) }   // common mistake: "bucket.nyc3.digitaloceanspaces.com"
+        let label = "[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?"
+        guard e.range(of: "^\(label)(\\.\(label))+(:[0-9]{1,5})?$", options: .regularExpression) != nil else {
+            throw UploadError("Enter the endpoint as a host name, like nyc3.digitaloceanspaces.com.")
+        }
+        return e
+    }
+
+    static func region(_ raw: String, endpoint: String) throws -> String {
+        var r = raw.trimmed.lowercased()
+        if r.isEmpty { r = endpoint.components(separatedBy: ".").first ?? "us-east-1" }
+        guard r.range(of: #"^[a-z0-9-]{1,32}$"#, options: .regularExpression) != nil else {
+            throw UploadError("The region isn't valid (for example nyc3 or us-east-1).")
+        }
+        return r
+    }
+
+    /// Folder inside the bucket: plain path segments only, no "." or "..".
+    static func prefix(_ raw: String) throws -> String {
+        let parts = raw.trimmed.split(separator: "/").map(String.init).filter { !$0.isEmpty }
+        for part in parts where part == "." || part == ".." || part.range(of: #"^[A-Za-z0-9._ -]+$"#, options: .regularExpression) == nil {
+            throw UploadError("The folder name can only use letters, numbers, spaces, dots, dashes and underscores.")
+        }
+        return parts.joined(separator: "/")
     }
 }

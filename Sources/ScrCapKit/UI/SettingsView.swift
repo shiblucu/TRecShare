@@ -134,9 +134,6 @@ private struct RecordingSettings: View {
 
 private struct UploadSettings: View {
     @EnvironmentObject private var settings: AppSettings
-    @State private var spacesSecret = Keychain.get(.spacesSecret) ?? ""
-    @State private var driveSecret = Keychain.get(.driveClientSecret) ?? ""
-    @State private var serverToken = Keychain.get(.serverToken) ?? ""
     @State private var testing = false
     @State private var testResult: (ok: Bool, text: String)?
     @State private var signingIn = false
@@ -199,8 +196,7 @@ private struct UploadSettings: View {
             TextField("Region", text: $settings.spacesRegion, prompt: Text("nyc3"))
             TextField("Bucket (Space name)", text: $settings.spacesBucket, prompt: Text("my-videos"))
             TextField("Access key", text: $settings.spacesAccessKey)
-            SecureField("Secret key", text: $spacesSecret)
-                .onChange(of: spacesSecret) { _, v in Keychain.set(v.trimmed, for: .spacesSecret); settings.objectWillChange.send() }
+            SecretField(title: "Secret key", key: .spacesSecret)
             TextField("Folder in bucket", text: $settings.spacesPrefix, prompt: Text("recordings"))
             Picker("Who can watch", selection: $settings.spacesLinkAccess) {
                 ForEach(LinkAccess.allCases) { Text($0.title).tag($0) }
@@ -220,8 +216,7 @@ private struct UploadSettings: View {
     private var driveSection: some View {
         Section {
             TextField("OAuth client ID", text: $settings.driveClientID, prompt: Text("1234-abc.apps.googleusercontent.com"))
-            SecureField("OAuth client secret", text: $driveSecret)
-                .onChange(of: driveSecret) { _, v in Keychain.set(v.trimmed, for: .driveClientSecret) }
+            SecretField(title: "OAuth client secret", key: .driveClientSecret)
             HStack {
                 if Keychain.has(.driveRefreshToken) {
                     Label("Signed in as \(settings.driveAccount.isEmpty ? "your Google account" : settings.driveAccount)",
@@ -267,8 +262,7 @@ private struct UploadSettings: View {
                 }
             case .http:
                 TextField("Upload URL", text: $settings.serverUploadURL, prompt: Text("https://videos.example.com/upload/"))
-                SecureField("Access token (sent as Bearer)", text: $serverToken)
-                    .onChange(of: serverToken) { _, v in Keychain.set(v.trimmed, for: .serverToken) }
+                SecretField(title: "Access token (sent as Bearer)", key: .serverToken)
             }
             TextField("Public URL of that folder", text: $settings.serverPublicBaseURL, prompt: Text("https://videos.example.com"))
         } header: {
@@ -298,7 +292,7 @@ private struct UploadSettings: View {
         Task {
             do {
                 let email = try await GoogleAuth.signIn(clientID: settings.driveClientID.trimmed,
-                                                        clientSecret: driveSecret.trimmed.isEmpty ? nil : driveSecret.trimmed)
+                                                        clientSecret: Keychain.get(.driveClientSecret))
                 settings.driveAccount = email
                 settings.driveFolderID = ""
                 testResult = (true, "Signed in as \(email).")
@@ -359,5 +353,51 @@ private struct ShortcutsAbout: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Entry for a secret stored in the Keychain. A saved secret is never read back into the window:
+/// the field only shows that one is saved, and offers Replace and Remove.
+private struct SecretField: View {
+    let title: String
+    let key: Keychain.Key
+    @EnvironmentObject private var settings: AppSettings
+    @State private var saved = false
+    @State private var editing = false
+    @State private var value = ""
+
+    var body: some View {
+        HStack {
+            if saved && !editing {
+                LabeledContent(title) {
+                    Label("Saved in Keychain", systemImage: "lock.fill").foregroundStyle(.secondary)
+                }
+                Button("Replace…") { value = ""; editing = true }
+                Button("Remove", role: .destructive) {
+                    Keychain.delete(key)
+                    refresh()
+                }
+            } else {
+                SecureField(title, text: $value)
+                    .onSubmit(save)
+                Button("Save", action: save).disabled(value.trimmed.isEmpty)
+                if editing { Button("Cancel") { editing = false; value = "" } }
+            }
+        }
+        .onAppear(perform: refresh)
+    }
+
+    private func save() {
+        let v = value.trimmed
+        guard !v.isEmpty else { return }
+        Keychain.set(v, for: key)
+        value = ""
+        editing = false
+        refresh()
+    }
+
+    private func refresh() {
+        saved = Keychain.has(key)
+        settings.objectWillChange.send()   // re-evaluate "what's missing" messages
     }
 }
