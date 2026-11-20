@@ -1,6 +1,6 @@
 import AppKit
 
-/// The app menu bar shown while a ScrCapKit window is open. Also provides the standard
+/// The app menu bar shown while a TRecShare window is open. Also provides the standard
 /// Edit shortcuts (⌘C/⌘V…) for text fields and ⌘W/⌘Q.
 @MainActor
 enum MainMenu {
@@ -8,9 +8,9 @@ enum MainMenu {
         let main = NSMenu()
 
         let appMenu = NSMenu()
-        appMenu.addItem(ClosureMenuItem(title: "About ScrCapKit") {
+        appMenu.addItem(ClosureMenuItem(title: "About TRecShare") {
             let credits = NSAttributedString(
-                string: "ScrCapKit is an independent project and is not affiliated with, endorsed by, or sponsored by Apple Inc. It is built with Apple's ScreenCaptureKit framework.",
+                string: "TRecShare is an independent project and is not affiliated with, endorsed by, or sponsored by Apple Inc. It is built with Apple's ScreenCaptureKit framework.",
                 attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor])
             NSApp.activate(ignoringOtherApps: true)
             NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
@@ -18,12 +18,12 @@ enum MainMenu {
         appMenu.addItem(.separator())
         appMenu.addItem(ClosureMenuItem(title: "Settings…", keyEquivalent: ",") { WindowRouter.shared.showSettings() })
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide ScrCapKit", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Hide TRecShare", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         let hideOthers = appMenu.addItem(withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
         hideOthers.keyEquivalentModifierMask = [.command, .option]
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit ScrCapKit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        main.addItem(submenu(appMenu, title: "ScrCapKit"))
+        appMenu.addItem(withTitle: "Quit TRecShare", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        main.addItem(submenu(appMenu, title: "TRecShare"))
 
         let file = NSMenu(title: "File")
         file.addItem(ClosureMenuItem(title: "New Recording", keyEquivalent: "n") { RecorderModel.shared.startRecording() })

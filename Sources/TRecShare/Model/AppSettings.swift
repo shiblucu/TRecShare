@@ -293,12 +293,46 @@ final class AppSettings: ObservableObject {
         hasCompletedOnboarding = d.bool(forKey: "onboarded")
     }
 
+    /// One-time move from the app's previous name (ScrCapKit): copies its settings and renames its
+    /// default recordings folder. Secrets are not copied, because the old Keychain items belong to
+    /// the old app identity and reading them would trigger a Keychain prompt.
+    static func migrateFromOldName() {
+        let d = UserDefaults.standard
+        let doneKey = "migratedFromScrCapKit"
+        guard !d.bool(forKey: doneKey) else { return }
+        defer { d.set(true, forKey: doneKey) }
+
+        let oldDomain = "com.tawfiq.scrcapkit"
+        if let current = Bundle.main.bundleIdentifier, current != oldDomain,
+           let old = d.persistentDomain(forName: oldDomain), !old.isEmpty,
+           d.persistentDomain(forName: current)?.isEmpty ?? true {
+            for (key, value) in old { d.set(value, forKey: key) }
+            Log.app.info("Copied \(old.count) settings from ScrCapKit")
+        }
+
+        // Recordings folder and upload history (Application Support).
+        let fm = FileManager.default
+        var parents = [defaultRecordingsFolder.deletingLastPathComponent()]
+        if let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first { parents.append(support) }
+        for parent in parents {
+            let old = parent.appendingPathComponent("ScrCapKit", isDirectory: true)
+            let new = parent.appendingPathComponent("TRecShare", isDirectory: true)
+            guard fm.fileExists(atPath: old.path), !fm.fileExists(atPath: new.path) else { continue }
+            do {
+                try fm.moveItem(at: old, to: new)
+                Log.app.info("Moved \(old.path) to the new name")
+            } catch {
+                Log.app.error("Could not move \(old.path): \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: Derived
 
     static var defaultRecordingsFolder: URL {
         let movies = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Movies")
-        return movies.appendingPathComponent("ScrCapKit", isDirectory: true)
+        return movies.appendingPathComponent("TRecShare", isDirectory: true)
     }
 
     var recordingsFolder: URL {

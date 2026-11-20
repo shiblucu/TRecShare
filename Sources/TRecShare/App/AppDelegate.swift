@@ -2,11 +2,12 @@ import AppKit
 import Combine
 
 @main
-enum ScrCapKitMain {
+enum TRecShareMain {
     @MainActor static let delegate = AppDelegate()   // NSApplication.delegate is weak: keep a strong reference
 
     @MainActor
     static func main() {
+        AppSettings.migrateFromOldName()                // before anything reads settings or folders
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)          // menu-bar app: no Dock icon until a window opens
         app.delegate = delegate
@@ -21,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // A menu-bar app has no windows, so macOS could otherwise end it as "idle".
-        ProcessInfo.processInfo.disableAutomaticTermination("ScrCapKit menu-bar app")
+        ProcessInfo.processInfo.disableAutomaticTermination("TRecShare menu-bar app")
         ProcessInfo.processInfo.disableSuddenTermination()
 
         MainMenu.install()

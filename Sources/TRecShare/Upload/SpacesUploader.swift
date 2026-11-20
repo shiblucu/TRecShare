@@ -284,7 +284,7 @@ struct SpacesUploader: Uploader {
     }
 
     func testConnection() async throws -> String {
-        let key = [prefix, ".scrcapkit-check-\(RandomID.make(length: 8)).txt"].filter { !$0.isEmpty }.joined(separator: "/")
+        let key = [prefix, ".trecshare-check-\(RandomID.make(length: 8)).txt"].filter { !$0.isEmpty }.joined(separator: "/")
         try await client.putData(Data("ok".utf8), key: key, contentType: "text/plain", acl: "private")
         try? await client.delete(key: key)
         return "Connected to \(client.bucket). Uploads will work."

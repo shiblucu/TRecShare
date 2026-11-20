@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// The panel is our own window (not NSPopover) so its behaviour is predictable:
 /// it always sits right under the icon, grows downward when its content changes, and closes on
-/// any click outside it, on Esc, when another app becomes active, or when a ScrCapKit window opens.
+/// any click outside it, on Esc, when another app becomes active, or when a TRecShare window opens.
 @MainActor
 final class StatusItemController: NSObject {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -26,7 +26,7 @@ final class StatusItemController: NSObject {
             button.action = #selector(clicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.imagePosition = .imageLeading
-            button.setAccessibilityTitle("ScrCapKit")
+            button.setAccessibilityTitle("TRecShare")
         }
 
         model.$state.combineLatest(model.$elapsed)
@@ -41,7 +41,7 @@ final class StatusItemController: NSObject {
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .sink { [weak self] _ in self?.closePopover() }
             .store(in: &cancellables)
-        // Close when any regular ScrCapKit window (Settings, Library, Review…) comes forward.
+        // Close when any regular TRecShare window (Settings, Library, Review…) comes forward.
         NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)
             .sink { [weak self] note in
                 guard let self, let window = note.object as? NSWindow, window !== self.panel,
@@ -83,7 +83,7 @@ final class StatusItemController: NSObject {
         case .finishing:
             symbol = "hourglass"
         }
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "ScrCapKit")
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "TRecShare")
         if let tint, let image {
             button.image = image.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [tint]))
             button.image?.isTemplate = false
@@ -93,7 +93,7 @@ final class StatusItemController: NSObject {
         }
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
         button.title = title
-        button.toolTip = model.state.isCapturing ? "Click to finish or pause the recording" : "ScrCapKit — click to record"
+        button.toolTip = model.state.isCapturing ? "Click to finish or pause the recording" : "TRecShare — click to record"
     }
 
     @objc private func clicked(_ sender: NSStatusBarButton) {
@@ -181,7 +181,7 @@ final class StatusItemController: NSObject {
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
         panel.contentView = host
-        panel.setAccessibilityLabel("ScrCapKit recorder")
+        panel.setAccessibilityLabel("TRecShare recorder")
         panel.onEscape = { [weak self] in self?.closePopover() }
         return panel
     }
@@ -237,7 +237,7 @@ final class StatusItemController: NSObject {
         add("Open Recordings Folder") { NSWorkspace.shared.open(RecordingLibrary.shared.folder) }
         add("Settings…") { WindowRouter.shared.showSettings() }
         menu.addItem(.separator())
-        add("Quit ScrCapKit") { NSApp.terminate(nil) }
+        add("Quit TRecShare") { NSApp.terminate(nil) }
         item.menu = menu
         item.button?.performClick(nil)
         item.menu = nil

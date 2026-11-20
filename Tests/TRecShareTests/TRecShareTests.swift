@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ScrCapKit
+@testable import TRecShare
 
 private func utc(_ s: String) -> Date {
     let f = DateFormatter()

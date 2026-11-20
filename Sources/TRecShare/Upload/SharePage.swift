@@ -57,7 +57,7 @@ enum SharePage {
           </div>
           <div class="bar">
             <a class="btn" href="\(v)" download="\(HTML.escape(downloadName))">⬇︎ Download</a>
-            <footer>Recorded with ScrCapKit</footer>
+            <footer>Recorded with TRecShare</footer>
           </div>
         </main>
         </body>

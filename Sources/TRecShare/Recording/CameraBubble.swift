@@ -10,7 +10,7 @@ final class CameraBubble: NSObject {
     private var panel: NSPanel?
     private var session: AVCaptureSession?
     private var currentDeviceID: String?
-    private let sessionQueue = DispatchQueue(label: "scrcapkit.camera")
+    private let sessionQueue = DispatchQueue(label: "trecshare.camera")
     private var savedOrigin: NSPoint?
 
     var isVisible: Bool { panel?.isVisible ?? false }

@@ -39,7 +39,7 @@ final class ScreenRecorder: NSObject {
     private var finishWaiters: [CheckedContinuation<Void, Never>] = []
     private var segmentError: Error?
     private var stoppingOnPurpose = false
-    private let sampleQueue = DispatchQueue(label: "scrcapkit.screen-samples")
+    private let sampleQueue = DispatchQueue(label: "trecshare.screen-samples")
 
     /// Every public operation runs after the previous one has fully finished, so a quick
     /// pause → resume (or resume → finish) can never overlap and clobber the active stream.

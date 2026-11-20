@@ -55,7 +55,7 @@ struct ServerUploader: Uploader {
         let videoURL = URL(string: joinURL(publicBaseURL, "\(folder)/\(videoName)"))!
 
         // Stage files under safe names (the original name may contain any characters).
-        let stage = FileManager.default.temporaryDirectory.appendingPathComponent("scrcapkit-upload-\(RandomID.make(length: 8))")
+        let stage = FileManager.default.temporaryDirectory.appendingPathComponent("trecshare-upload-\(RandomID.make(length: 8))")
         try FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: stage) }
         var files: [(local: URL, remote: String, type: String)] = []
@@ -139,7 +139,7 @@ struct ServerUploader: Uploader {
             try await SFTP.run(["cd \"\(remotePath)\"", "pwd"], host: host, port: port, user: user, keyPath: keyPath)
             return "Connected to \(host) and found \(remotePath)."
         case let .http(uploadURL, token):
-            let url = URL(string: joinURL(uploadURL.absoluteString, ".scrcapkit-check-\(RandomID.make(length: 8)).txt"))!
+            let url = URL(string: joinURL(uploadURL.absoluteString, ".trecshare-check-\(RandomID.make(length: 8)).txt"))!
             var put = URLRequest(url: url)
             put.httpMethod = "PUT"
             put.setValue("text/plain", forHTTPHeaderField: "Content-Type")
@@ -158,7 +158,7 @@ struct ServerUploader: Uploader {
 /// Runs `/usr/bin/sftp -b` with arguments passed directly (no shell), so nothing can be injected.
 enum SFTP {
     static func run(_ commands: [String], host: String, port: Int, user: String, keyPath: String?) async throws {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("scrcapkit-sftp-\(RandomID.make(length: 8))")
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("trecshare-sftp-\(RandomID.make(length: 8))")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: dir) }

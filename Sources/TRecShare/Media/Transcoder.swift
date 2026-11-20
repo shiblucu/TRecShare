@@ -120,7 +120,7 @@ enum Transcoder {
         await withTaskCancellationHandler {
             await withTaskGroup(of: Void.self) { group in
                 for (i, pipe) in pipes.enumerated() {
-                    group.addTask { await pipe.run(queue: DispatchQueue(label: "scrcapkit.transcode.\(i)")) }
+                    group.addTask { await pipe.run(queue: DispatchQueue(label: "trecshare.transcode.\(i)")) }
                 }
             }
         } onCancel: {

@@ -11,7 +11,7 @@ enum Keychain {
         case serverToken = "server.httpToken"
     }
 
-    private static let service = (Bundle.main.bundleIdentifier ?? "com.tawfiq.scrcapkit") + ".secrets"
+    private static let service = (Bundle.main.bundleIdentifier ?? "com.tawfiq.trecshare") + ".secrets"
 
     static func get(_ key: Key) -> String? {
         var query = baseQuery(key)

@@ -67,11 +67,11 @@ struct RecorderPanel: View {
                 .frame(width: 26, height: 26)
                 .overlay(Image(systemName: "video.fill").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white))
                 .accessibilityHidden(true)
-            Text("ScrCapKit").font(.headline)
+            Text("TRecShare").font(.headline)
             Spacer()
             headerButton("rectangle.stack", "Library") { WindowRouter.shared.showLibrary() }
             headerButton("gearshape", "Settings") { WindowRouter.shared.showSettings() }
-            headerButton("power", "Quit ScrCapKit") { NSApp.terminate(nil) }
+            headerButton("power", "Quit TRecShare") { NSApp.terminate(nil) }
                 .disabled(model.state.isCapturing || model.state == .finishing)
         }
         .padding(.horizontal, 16)

@@ -347,7 +347,7 @@ final class RecorderModel: ObservableObject {
 
         await refreshSources()
         guard let content else {
-            fail("ScrCapKit needs Screen Recording permission. Turn it on in System Settings, then quit and reopen ScrCapKit.")
+            fail("TRecShare needs Screen Recording permission. Turn it on in System Settings, then quit and reopen TRecShare.")
             return
         }
         if Task.isCancelled { return }
@@ -428,7 +428,7 @@ final class RecorderModel: ObservableObject {
         }
 
         let config = makeConfiguration(filter: filter, display: display, areaRect: areaRect)
-        let base = "ScrCapKit \(FileNames.timestamp())"
+        let base = "TRecShare \(FileNames.timestamp())"
         let url = FileNames.unique(in: folder, base: base, ext: "mp4")
 
         do {
@@ -505,7 +505,7 @@ final class RecorderModel: ObservableObject {
 
         await refreshSources()
         guard let content else {
-            errorMessage = "ScrCapKit needs Screen Recording permission. Turn it on in System Settings, then quit and reopen ScrCapKit."
+            errorMessage = "TRecShare needs Screen Recording permission. Turn it on in System Settings, then quit and reopen TRecShare."
             return
         }
 
@@ -571,7 +571,7 @@ final class RecorderModel: ObservableObject {
             let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
             let folder = settings.recordingsFolder.appendingPathComponent("Screenshots", isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let url = FileNames.unique(in: folder, base: "ScrCapKit Screenshot \(FileNames.timestamp())", ext: "png")
+            let url = FileNames.unique(in: folder, base: "TRecShare Screenshot \(FileNames.timestamp())", ext: "png")
             guard let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
                 throw CocoaError(.fileWriteUnknown)
             }

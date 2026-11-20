@@ -54,7 +54,7 @@ enum GoogleAuth {
         if let clientSecret, !clientSecret.isEmpty { form["client_secret"] = clientSecret }
         let tokens = try await postForm(tokenURL, form)
         guard let refresh = tokens.refresh_token else {
-            throw UploadError("Google didn't grant offline access. Remove ScrCapKit from your Google account's third-party access and sign in again.")
+            throw UploadError("Google didn't grant offline access. Remove TRecShare from your Google account's third-party access and sign in again.")
         }
         Keychain.set(refresh, for: .driveRefreshToken)
         await TokenStore.shared.set(tokens.access_token, expiresIn: tokens.expires_in ?? 3600)
@@ -117,7 +117,7 @@ actor TokenStore {
 /// One-shot HTTP listener on 127.0.0.1 that captures the OAuth redirect's query string.
 final class LoopbackReceiver: @unchecked Sendable {
     private let listener: NWListener
-    private let queue = DispatchQueue(label: "scrcapkit.oauth-loopback")
+    private let queue = DispatchQueue(label: "trecshare.oauth-loopback")
     private var continuation: CheckedContinuation<[String: String], Error>?
     private let lock = NSLock()
 
@@ -184,7 +184,7 @@ final class LoopbackReceiver: @unchecked Sendable {
             }
             let isCallback = params["code"] != nil || params["error"] != nil
             let body = isCallback
-                ? "<!doctype html><meta charset=utf-8><title>ScrCapKit</title><body style=\"font:16px -apple-system,sans-serif;text-align:center;padding:60px\"><h2>You're signed in.</h2><p>You can close this tab and go back to ScrCapKit.</p></body>"
+                ? "<!doctype html><meta charset=utf-8><title>TRecShare</title><body style=\"font:16px -apple-system,sans-serif;text-align:center;padding:60px\"><h2>You're signed in.</h2><p>You can close this tab and go back to TRecShare.</p></body>"
                 : "Not found"
             let status = isCallback ? "200 OK" : "404 Not Found"
             let response = "HTTP/1.1 \(status)\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n\(body)"
@@ -256,7 +256,7 @@ struct DriveClient: Sendable {
         return user?["emailAddress"] as? String ?? user?["displayName"] as? String ?? "Google account"
     }
 
-    /// Returns the ID of the app's "ScrCapKit" folder, creating it if needed.
+    /// Returns the ID of the app's "TRecShare" folder, creating it if needed.
     func ensureFolder(knownID: String) async throws -> String {
         if !knownID.isEmpty, knownID.range(of: #"^[A-Za-z0-9_-]{10,200}$"#, options: .regularExpression) != nil,
            let file = try? await json("GET", "https://www.googleapis.com/drive/v3/files/\(knownID)?fields=id,trashed"),
@@ -264,8 +264,8 @@ struct DriveClient: Sendable {
             return knownID
         }
         let created = try await json("POST", "https://www.googleapis.com/drive/v3/files?fields=id",
-                                     body: ["name": "ScrCapKit", "mimeType": "application/vnd.google-apps.folder"])
-        guard let id = created["id"] as? String else { throw UploadError("Could not create the ScrCapKit folder in Drive.") }
+                                     body: ["name": "TRecShare", "mimeType": "application/vnd.google-apps.folder"])
+        guard let id = created["id"] as? String else { throw UploadError("Could not create the TRecShare folder in Drive.") }
         return id
     }
 

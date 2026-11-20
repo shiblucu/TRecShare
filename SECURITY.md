@@ -7,7 +7,7 @@ Report them privately through GitHub: **Security → Report a vulnerability** on
 (private vulnerability reporting). Include steps to reproduce and the version you used.
 You'll get an answer as soon as possible, and a fix will be released before details are made public.
 
-## How ScrCapKit protects your data
+## How TRecShare protects your data
 
 - Recordings stay on your Mac unless you set up uploads; files are readable only by your user account.
 - Access keys, tokens and client secrets are stored in the macOS Keychain (this device only) and are

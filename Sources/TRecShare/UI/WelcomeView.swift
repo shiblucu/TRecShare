@@ -17,12 +17,12 @@ struct WelcomeView: View {
                 RoundedRectangle(cornerRadius: 12).fill(Theme.accent).frame(width: 52, height: 52)
                     .overlay(Image(systemName: "video.fill").font(.system(size: 22, weight: .semibold)).foregroundStyle(.white))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Welcome to ScrCapKit").font(.title.weight(.bold))
+                    Text("Welcome to TRecShare").font(.title.weight(.bold))
                     Text("Record your screen, camera and voice. Share a link in seconds.").foregroundStyle(.secondary)
                 }
             }
 
-            Text("ScrCapKit needs a few permissions. Nothing leaves your Mac unless you set up uploads.")
+            Text("TRecShare needs a few permissions. Nothing leaves your Mac unless you set up uploads.")
                 .font(.callout)
 
             VStack(spacing: 10) {
@@ -46,7 +46,7 @@ struct WelcomeView: View {
             }
 
             if !screen {
-                Text("After allowing Screen Recording, macOS may ask you to quit and reopen ScrCapKit.")
+                Text("After allowing Screen Recording, macOS may ask you to quit and reopen TRecShare.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 

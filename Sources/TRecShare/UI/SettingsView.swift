@@ -53,7 +53,7 @@ private struct GeneralSettings: View {
                     .disabled(settings.uploadDestination == .none)
             }
             Section("App") {
-                Toggle("Open ScrCapKit when I log in", isOn: $launchAtLogin)
+                Toggle("Open TRecShare when I log in", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in
                         settings.launchAtLogin = on
                         launchAtLogin = settings.launchAtLogin
@@ -75,7 +75,7 @@ private struct GeneralSettings: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         guard FileManager.default.isWritableFile(atPath: url.path) else {
             let alert = NSAlert()
-            alert.messageText = "ScrCapKit can't write to that folder"
+            alert.messageText = "TRecShare can't write to that folder"
             alert.informativeText = "Choose a folder you have write access to."
             alert.runModal()
             return
@@ -238,7 +238,7 @@ private struct UploadSettings: View {
         } header: {
             Text("Google Drive")
         } footer: {
-            Text("In Google Cloud Console: enable the Google Drive API, then create an OAuth client of type \"Desktop app\" and paste its ID and secret here. ScrCapKit only gets access to the files it uploads (folder \"ScrCapKit\" in your Drive).")
+            Text("In Google Cloud Console: enable the Google Drive API, then create an OAuth client of type \"Desktop app\" and paste its ID and secret here. TRecShare only gets access to the files it uploads (folder \"TRecShare\" in your Drive).")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -343,9 +343,9 @@ private struct ShortcutsAbout: View {
             Section("About") {
                 LabeledContent("Version", value: "\(AppInfo.version) (\(AppInfo.build))")
                 LabeledContent("Recordings", value: settings.recordingsFolder.path)
-                Text("ScrCapKit records your screen, camera and voice and keeps the files on your Mac. Uploads only go to the storage you set up here. No analytics, no tracking.")
+                Text("TRecShare records your screen, camera and voice and keeps the files on your Mac. Uploads only go to the storage you set up here. No analytics, no tracking.")
                     .font(.caption).foregroundStyle(.secondary)
-                Text("ScrCapKit is not affiliated with, endorsed by, or sponsored by Apple Inc. It is built with Apple's ScreenCaptureKit framework.")
+                Text("TRecShare is not affiliated with, endorsed by, or sponsored by Apple Inc. It is built with Apple's ScreenCaptureKit framework.")
                     .font(.caption).foregroundStyle(.secondary)
                 Button("Open Logs in Console") {
                     NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Console.app"))

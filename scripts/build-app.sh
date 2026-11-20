@@ -1,14 +1,14 @@
 #!/bin/bash
-# Builds "ScrCapKit.app" into ./build (hardened runtime, signed).
+# Builds "TRecShare.app" into ./build (hardened runtime, signed).
 #
 #   ./scripts/build-app.sh               release build, ad-hoc signed (for this Mac)
 #   ./scripts/build-app.sh --open        build, then launch it
-#   ./scripts/build-app.sh --dmg         also make build/ScrCapKit-<version>.dmg
+#   ./scripts/build-app.sh --dmg         also make build/TRecShare-<version>.dmg
 #
 # Environment:
 #   SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"   sign for distribution
-#   NOTARY_PROFILE="scrcapkit"   notarize + staple the DMG (create the profile once with
-#                                `xcrun notarytool store-credentials scrcapkit`)
+#   NOTARY_PROFILE="trecshare"   notarize + staple the DMG (create the profile once with
+#                                `xcrun notarytool store-credentials trecshare`)
 #   UNIVERSAL=1                  build for Apple silicon and Intel
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -23,8 +23,8 @@ for arg in "$@"; do
 done
 
 CONFIG="${CONFIG:-release}"
-APP="build/ScrCapKit.app"
-BUNDLE_ID="com.tawfiq.scrcapkit"
+APP="build/TRecShare.app"
+BUNDLE_ID="com.tawfiq.trecshare"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist)"
 IDENTITY="${SIGN_IDENTITY:--}"
 
@@ -38,16 +38,16 @@ BINARIES=()
 for ARCH in $ARCHS; do
   echo "→ Compiling ($CONFIG, $ARCH)..."
   swift build -c "$CONFIG" --arch "$ARCH"
-  BINARIES+=("$(swift build -c "$CONFIG" --arch "$ARCH" --show-bin-path)/ScrCapKit")
+  BINARIES+=("$(swift build -c "$CONFIG" --arch "$ARCH" --show-bin-path)/TRecShare")
 done
 
 echo "→ Assembling $APP (v$VERSION)..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 if [ "${#BINARIES[@]}" -gt 1 ]; then
-  lipo -create "${BINARIES[@]}" -output "$APP/Contents/MacOS/ScrCapKit"
+  lipo -create "${BINARIES[@]}" -output "$APP/Contents/MacOS/TRecShare"
 else
-  cp "${BINARIES[0]}" "$APP/Contents/MacOS/ScrCapKit"
+  cp "${BINARIES[0]}" "$APP/Contents/MacOS/TRecShare"
 fi
 cp Support/Info.plist "$APP/Contents/Info.plist"
 if [ -f Support/AppIcon.icns ]; then
@@ -56,11 +56,11 @@ if [ -f Support/AppIcon.icns ]; then
 fi
 
 echo "→ Signing (${IDENTITY/-/ad-hoc}, hardened runtime)..."
-SIGN_ARGS=(--force --options runtime --timestamp --entitlements Support/ScrCapKit.entitlements)
+SIGN_ARGS=(--force --options runtime --timestamp --entitlements Support/TRecShare.entitlements)
 if [ "$IDENTITY" = "-" ]; then
   # Ad-hoc: pin the identity to the bundle ID (not the code hash) so macOS keeps the
   # Screen Recording permission across rebuilds. No timestamp for ad-hoc signatures.
-  codesign --force --options runtime --entitlements Support/ScrCapKit.entitlements \
+  codesign --force --options runtime --entitlements Support/TRecShare.entitlements \
     --sign - -r="designated => identifier \"$BUNDLE_ID\"" "$APP"
 else
   codesign "${SIGN_ARGS[@]}" --sign "$IDENTITY" "$APP"
@@ -69,12 +69,12 @@ codesign --verify --strict --verbose=1 "$APP"
 echo "✓ Built $APP"
 
 if [ "$DMG" = "1" ]; then
-  DMG_PATH="build/ScrCapKit-$VERSION.dmg"
+  DMG_PATH="build/TRecShare-$VERSION.dmg"
   STAGE="$(mktemp -d)"
   cp -R "$APP" "$STAGE/"
   ln -s /Applications "$STAGE/Applications"
   rm -f "$DMG_PATH"
-  hdiutil create -volname "ScrCapKit $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG_PATH" >/dev/null
+  hdiutil create -volname "TRecShare $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG_PATH" >/dev/null
   rm -rf "$STAGE"
   if [ "$IDENTITY" != "-" ]; then
     codesign --force --timestamp --sign "$IDENTITY" "$DMG_PATH"
@@ -92,7 +92,7 @@ if [ "$DMG" = "1" ]; then
 fi
 
 if [ "$OPEN" = "1" ]; then
-  pkill -x ScrCapKit 2>/dev/null || true
+  pkill -x TRecShare 2>/dev/null || true
   sleep 0.5
   open "$APP"
 fi

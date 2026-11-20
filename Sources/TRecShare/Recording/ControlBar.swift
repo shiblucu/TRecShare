@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// Floating controls while recording: timer, pause/resume, restart, delete, finish.
-/// It belongs to ScrCapKit, so it is never captured in the video.
+/// It belongs to TRecShare, so it is never captured in the video.
 @MainActor
 enum ControlBar {
     private static var panel: NSPanel?

@@ -10,7 +10,7 @@ final class WindowRouter: NSObject, NSWindowDelegate {
 
     func showLibrary() {
         RecordingLibrary.shared.refresh()
-        show(id: "library", title: "ScrCapKit Library", size: NSSize(width: 900, height: 620), minSize: NSSize(width: 560, height: 400)) {
+        show(id: "library", title: "TRecShare Library", size: NSSize(width: 900, height: 620), minSize: NSSize(width: 560, height: 400)) {
             LibraryView()
         }
     }
@@ -27,14 +27,14 @@ final class WindowRouter: NSObject, NSWindowDelegate {
 
     func showSettings(tab: SettingsView.Tab? = nil) {
         if let tab { SettingsNav.shared.tab = tab }
-        show(id: "settings", title: "ScrCapKit Settings", size: NSSize(width: 640, height: 600),
+        show(id: "settings", title: "TRecShare Settings", size: NSSize(width: 640, height: 600),
                           minSize: NSSize(width: 560, height: 480)) {
             SettingsView()
         }
     }
 
     func showWelcome() {
-        show(id: "welcome", title: "Welcome to ScrCapKit", size: NSSize(width: 560, height: 600), minSize: NSSize(width: 520, height: 560),
+        show(id: "welcome", title: "Welcome to TRecShare", size: NSSize(width: 560, height: 600), minSize: NSSize(width: 520, height: 560),
              resizable: false) {
             WelcomeView()
         }
@@ -69,8 +69,8 @@ final class WindowRouter: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.identifier = NSUserInterfaceItemIdentifier(id)
-        window.setFrameAutosaveName("ScrCapKit.\(id)")
-        if !window.setFrameUsingName("ScrCapKit.\(id)") { window.center() }
+        window.setFrameAutosaveName("TRecShare.\(id)")
+        if !window.setFrameUsingName("TRecShare.\(id)") { window.center() }
         windows[id] = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

@@ -3,18 +3,18 @@ import Foundation
 import os
 import Security
 
-/// Shared loggers. View them in Console.app with subsystem "com.tawfiq.scrcapkit".
+/// Shared loggers. View them in Console.app with subsystem "com.tawfiq.trecshare".
 enum Log {
-    static let subsystem = Bundle.main.bundleIdentifier ?? "com.tawfiq.scrcapkit"
+    static let subsystem = Bundle.main.bundleIdentifier ?? "com.tawfiq.trecshare"
     static let app = Logger(subsystem: subsystem, category: "app")
     static let recorder = Logger(subsystem: subsystem, category: "recorder")
     static let upload = Logger(subsystem: subsystem, category: "upload")
 }
 
 enum AppInfo {
-    static var name: String { "ScrCapKit" }
+    static var name: String { "TRecShare" }
     /// HTTP User-Agent product token (no spaces allowed).
-    static var userAgentName: String { "ScrCapKit" }
+    static var userAgentName: String { "TRecShare" }
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
     }

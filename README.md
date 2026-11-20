@@ -1,4 +1,4 @@
-# ScrCapKit
+# TRecShare
 
 A screen recorder for macOS, written in Swift. Record your screen, a window or an area together with your
 camera and voice, then share a link from **your own** storage: Google Drive, DigitalOcean Spaces
@@ -12,7 +12,7 @@ Everything stays on your Mac unless you set up an upload. No account, no analyti
 2. [Requirements](#requirements)
 3. [Install (step by step)](#install-step-by-step)
 4. [First recording](#first-recording)
-5. [Using ScrCapKit](#using-scrcapkit)
+5. [Using TRecShare](#using-trecshare)
 6. [Settings reference](#settings-reference)
 7. [Set up uploads](#set-up-uploads)
 8. [Quality and file sizes](#quality-and-file-sizes)
@@ -71,7 +71,7 @@ To check your macOS version: Apple menu → **About This Mac**.
 
 ## Install (step by step)
 
-ScrCapKit is built from source on your own Mac. It takes a few minutes and needs no Apple Developer account.
+TRecShare is built from source on your own Mac. It takes a few minutes and needs no Apple Developer account.
 
 ### 1. Install the build tools
 
@@ -95,8 +95,8 @@ You should see a version number (5.10 or newer). If you only installed Xcode, op
 Either clone with git (recommended, makes updating easy):
 
 ```bash
-git clone https://github.com/<your-account>/ScrCapKit.git
-cd ScrCapKit
+git clone https://github.com/<your-account>/TRecShare.git
+cd TRecShare
 ```
 
 or on GitHub click **Code → Download ZIP**, unzip it, and `cd` into the folder.
@@ -109,8 +109,8 @@ or on GitHub click **Code → Download ZIP**, unzip it, and `cd` into the folder
 ./scripts/build-app.sh
 ```
 
-This compiles ScrCapKit, creates `build/ScrCapKit.app`, and signs it for your Mac. It takes one to three minutes
-the first time. When it ends you should see `✓ Built build/ScrCapKit.app`.
+This compiles TRecShare, creates `build/TRecShare.app`, and signs it for your Mac. It takes one to three minutes
+the first time. When it ends you should see `✓ Built build/TRecShare.app`.
 
 - If you get **"permission denied"**: run `chmod +x scripts/build-app.sh` and try again.
 - If you get an error about `xcrun` or a missing developer directory: repeat step 1.
@@ -120,19 +120,19 @@ the first time. When it ends you should see `✓ Built build/ScrCapKit.app`.
 ### 4. Move it to Applications and open it
 
 ```bash
-cp -R build/ScrCapKit.app /Applications/
-open /Applications/ScrCapKit.app
+cp -R build/TRecShare.app /Applications/
+open /Applications/TRecShare.app
 ```
 
 Because you built it yourself, macOS does not show a "downloaded from the internet" warning.
 (Only if you copied an already-built app from someone else, remove the quarantine flag first:
-`xattr -dr com.apple.quarantine /Applications/ScrCapKit.app`.)
+`xattr -dr com.apple.quarantine /Applications/TRecShare.app`.)
 
 A video icon appears in the menu bar and the **Welcome** window opens.
 
 ### 5. Allow the permissions
 
-The Welcome window lists what ScrCapKit needs. Click **Allow** next to each:
+The Welcome window lists what TRecShare needs. Click **Allow** next to each:
 
 | Permission | Why | Required? |
 |---|---|---|
@@ -142,33 +142,33 @@ The Welcome window lists what ScrCapKit needs. Click **Allow** next to each:
 | **Notifications** | To tell you when a recording or link is ready | Optional |
 
 Screen Recording opens **System Settings → Privacy & Security → Screen & System Audio Recording**.
-Switch **ScrCapKit** on there (if it is not in the list, click **+** and choose it from Applications).
+Switch **TRecShare** on there (if it is not in the list, click **+** and choose it from Applications).
 
 > **Important:** after you allow Screen Recording, macOS usually asks you to **quit and reopen** the app.
-> Click the power icon in ScrCapKit's panel (or right-click the menu-bar icon → Quit), then open it again.
+> Click the power icon in TRecShare's panel (or right-click the menu-bar icon → Quit), then open it again.
 
 You can reopen the guide any time: **Settings → General → Show the welcome & permissions guide**.
 
 ### 6. (Optional) Start at login
 
-**Settings → General → Open ScrCapKit when I log in.** Keep the app in `/Applications` for this to work reliably.
+**Settings → General → Open TRecShare when I log in.** Keep the app in `/Applications` for this to work reliably.
 
 ---
 
 ## First recording
 
-1. Click the **video icon** in the menu bar. The ScrCapKit panel opens under it.
+1. Click the **video icon** in the menu bar. The TRecShare panel opens under it.
 2. Choose **Screen**, **Window** or **Area**. For Screen, pick the display (the one you clicked from is pre-selected).
 3. Turn the **camera** and **microphone** on or off. Choose **System audio** if you want sound from apps.
 4. Press **Start recording** (or **⌥⇧R**). After the 3-second countdown, recording starts.
 5. Use the **floating control bar** to pause, restart, delete or finish.
 6. Press **Finish** (or **⌥⇧R** again). The **Review** window opens with your video.
 
-The video is saved in `~/Movies/ScrCapKit`. If uploads are set up, it uploads and the link is copied to your clipboard.
+The video is saved in `~/Movies/TRecShare`. If uploads are set up, it uploads and the link is copied to your clipboard.
 
 ---
 
-## Using ScrCapKit
+## Using TRecShare
 
 ### The menu-bar icon
 - **Click** it to open the panel. It closes when you click elsewhere, press **Esc**, switch apps, or open a window.
@@ -218,7 +218,7 @@ Opens after each recording (turn off in Settings). It lets you:
 - **Show in Finder** or **Move to Trash**.
 
 ### Library
-Menu-bar icon → **Library** (also **⌘L** while a ScrCapKit window is open). Shows every recording with a
+Menu-bar icon → **Library** (also **⌘L** while a TRecShare window is open). Shows every recording with a
 thumbnail, length, size and a **Shared** badge. Click one to open it. Right-click for: open, play in QuickTime,
 copy link, open link, upload / upload again, show in Finder, move to Trash.
 
@@ -226,16 +226,16 @@ copy link, open link, upload / upload again, show in Finder, move to Trash.
 
 ## Settings reference
 
-Open with the **gear** in the panel, the right-click menu, or **⌘,** while a ScrCapKit window is open.
+Open with the **gear** in the panel, the right-click menu, or **⌘,** while a TRecShare window is open.
 
 ### General
 | Setting | What it does |
 |---|---|
-| Recordings folder | Where recordings are saved (default `~/Movies/ScrCapKit`). **Change…**, **Reset**, **Open in Finder**. |
+| Recordings folder | Where recordings are saved (default `~/Movies/TRecShare`). **Change…**, **Reset**, **Open in Finder**. |
 | Open the review window | Show the Review window after each recording. |
 | Upload automatically and copy the link | Upload right after recording (needs an upload destination). |
 | Open the link in the browser after upload | Open the share link when the upload finishes. |
-| Open ScrCapKit when I log in | Launch at login. |
+| Open TRecShare when I log in | Launch at login. |
 
 ### Recording
 | Setting | What it does |
@@ -275,7 +275,7 @@ When an upload finishes, the link is copied to your clipboard and a notification
 
 1. In DigitalOcean, **Create → Spaces Object Storage**. Pick a region and a name (this is your **bucket**).
 2. Go to **API → Spaces Keys → Generate New Key**. Copy the **Access key** and the **Secret** (shown only once).
-3. In ScrCapKit, **Settings → Uploads → Upload to → DigitalOcean Spaces / S3** and enter:
+3. In TRecShare, **Settings → Uploads → Upload to → DigitalOcean Spaces / S3** and enter:
    - **Endpoint**: `<region>.digitaloceanspaces.com`, for example `nyc3.digitaloceanspaces.com`
    - **Region**: for example `nyc3`
    - **Bucket**: the Space name
@@ -299,16 +299,16 @@ Google requires every app to use an OAuth client. You create your own (free, abo
 2. **APIs & Services → Library → Google Drive API → Enable.**
 3. **APIs & Services → OAuth consent screen**: choose **External**, fill in the app name and your email.
    While the app is in **Testing**, add your own Google account under **Test users**.
-   Then, to avoid being signed out every 7 days, press **Publish app** (status *In production*). ScrCapKit only asks
+   Then, to avoid being signed out every 7 days, press **Publish app** (status *In production*). TRecShare only asks
    for the narrow `drive.file` scope, which should not need Google's verification review. Check Google's current
    rules if the console says otherwise.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID → Application type: Desktop app.**
    Copy the **Client ID** and **Client secret**.
-5. In ScrCapKit: **Upload to → Google Drive**, paste the client ID and secret, then press **Sign in with Google**.
+5. In TRecShare: **Upload to → Google Drive**, paste the client ID and secret, then press **Sign in with Google**.
    Your browser opens; allow access and return to the app. It shows "Signed in as <email>".
 6. Optional: turn **Anyone with the link can watch** off if you want to share files from Drive yourself.
 
-Videos go into a **ScrCapKit** folder in your Drive. ScrCapKit can only see files it created itself.
+Videos go into a **TRecShare** folder in your Drive. TRecShare can only see files it created itself.
 Google Drive links open Google's own player (no share page).
 
 ### Your own server (VPS)
@@ -333,7 +333,7 @@ Uses your SSH key or `ssh-agent`. No password is stored.
        location ~* \.mp4$ { add_header Accept-Ranges bytes; }
    }
    ```
-4. In ScrCapKit: **Upload to → My own server (VPS) → SFTP** and enter the **Host**, **Port** (22),
+4. In TRecShare: **Upload to → My own server (VPS) → SFTP** and enter the **Host**, **Port** (22),
    **SSH user**, **Folder on the server** (`/var/www/videos`), optionally the **SSH private key**
    (**Choose…**), and the **Public URL of that folder** (`https://videos.example.com`).
 5. Press **Test Connection**.
@@ -342,7 +342,7 @@ The first connection trusts the server's host key and remembers it in `~/.ssh/kn
 the upload stops with a warning.
 
 #### Option B: HTTPS PUT / WebDAV
-ScrCapKit sends files with `PUT` (and `MKCOL` for the folder), with an optional `Authorization: Bearer <token>`.
+TRecShare sends files with `PUT` (and `MKCOL` for the folder), with an optional `Authorization: Bearer <token>`.
 Example nginx endpoint (needs nginx's WebDAV module, for example the `nginx-extras` package on Debian/Ubuntu):
 
 ```nginx
@@ -355,7 +355,7 @@ location /upload/ {
 }
 ```
 
-Use a long random token (for example `openssl rand -hex 32`). In ScrCapKit enter the **Upload URL**
+Use a long random token (for example `openssl rand -hex 32`). In TRecShare enter the **Upload URL**
 (`https://videos.example.com/upload/`), the **Access token** and the **Public URL**.
 
 > Uploads require **HTTPS**. Plain `http://` is only accepted for `localhost` while testing.
@@ -394,13 +394,13 @@ Upload copies are H.264 with AAC audio and "fast start", which plays in every br
 
 | What | Where |
 |---|---|
-| Recordings | `~/Movies/ScrCapKit` (changeable in Settings) |
+| Recordings | `~/Movies/TRecShare` (changeable in Settings) |
 | Screenshots | `<recordings folder>/Screenshots` |
 | Smaller and trimmed copies | Next to the original recording |
-| Upload links and history | `~/Library/Application Support/ScrCapKit/uploads.json` |
-| Settings | `~/Library/Preferences/com.tawfiq.scrcapkit.plist` |
-| Keys and tokens | macOS Keychain, service `com.tawfiq.scrcapkit.secrets` |
-| Logs | macOS unified log, subsystem `com.tawfiq.scrcapkit` |
+| Upload links and history | `~/Library/Application Support/TRecShare/uploads.json` |
+| Settings | `~/Library/Preferences/com.tawfiq.trecshare.plist` |
+| Keys and tokens | macOS Keychain, service `com.tawfiq.trecshare.secrets` |
+| Logs | macOS unified log, subsystem `com.tawfiq.trecshare` |
 | Temporary files | Removed after each recording or upload |
 
 Recordings and screenshots are readable only by your user account.
@@ -412,9 +412,9 @@ Recordings and screenshots are readable only by your user account.
 **macOS keeps asking for Screen Recording permission, or the app can't record even though it is switched on**
 Reset the permission and grant it again:
 ```bash
-tccutil reset ScreenCapture com.tawfiq.scrcapkit
+tccutil reset ScreenCapture com.tawfiq.trecshare
 ```
-Reopen ScrCapKit, allow Screen Recording when asked, then **quit and reopen** the app once.
+Reopen TRecShare, allow Screen Recording when asked, then **quit and reopen** the app once.
 Local builds use a stable signature, so the permission normally survives rebuilds.
 
 **The build script says "permission denied"**
@@ -426,7 +426,7 @@ Install the tools: `xcode-select --install`. If Xcode is installed but not selec
 
 **I don't see the menu-bar icon**
 On Macs with a notch the menu bar can run out of space, and macOS hides icons that don't fit. Quit other
-menu-bar apps or use a tool that manages menu-bar items. Make sure the app is running (Activity Monitor → ScrCapKit).
+menu-bar apps or use a tool that manages menu-bar items. Make sure the app is running (Activity Monitor → TRecShare).
 
 **The camera doesn't show**
 Check System Settings → Privacy & Security → Camera. Close other apps using the camera (video-call apps).
@@ -462,7 +462,7 @@ For your own server, check that the public URL points at the same folder you upl
 
 **Look at the logs**
 ```bash
-log show --last 10m --info --predicate 'subsystem == "com.tawfiq.scrcapkit"'
+log show --last 10m --info --predicate 'subsystem == "com.tawfiq.trecshare"'
 ```
 Dynamic values such as file names are redacted by default.
 
@@ -472,25 +472,32 @@ Dynamic values such as file names are redacted by default.
 
 ### Update
 ```bash
-cd ScrCapKit
+cd TRecShare
 git pull
 ./scripts/build-app.sh
-cp -R build/ScrCapKit.app /Applications/       # quit ScrCapKit first
+cp -R build/TRecShare.app /Applications/       # quit TRecShare first
 ```
 Your settings, recordings and permissions are kept.
 
+**Coming from ScrCapKit (the app's earlier name)?** The first launch of TRecShare copies your
+settings and moves `~/Movies/ScrCapKit` to `~/Movies/TRecShare`. Because the app identity changed,
+macOS asks for Screen Recording (and camera/microphone) permission again, and upload secrets
+(access keys, tokens, Google sign-in) must be entered once more in **Settings → Uploads**. You can then
+delete the old `ScrCapKit.app` and clear its data with the uninstall steps below, using `scrcapkit` in
+place of `trecshare`.
+
 ### Uninstall
-1. Quit ScrCapKit and delete `/Applications/ScrCapKit.app`.
+1. Quit TRecShare and delete `/Applications/TRecShare.app`.
 2. (Optional) remove its data:
    ```bash
-   defaults delete com.tawfiq.scrcapkit
-   rm -rf ~/Library/Application\ Support/ScrCapKit
-   tccutil reset All com.tawfiq.scrcapkit
+   defaults delete com.tawfiq.trecshare
+   rm -rf ~/Library/Application\ Support/TRecShare
+   tccutil reset All com.tawfiq.trecshare
    for k in spaces.secretKey drive.clientSecret drive.refreshToken server.httpToken; do
-     security delete-generic-password -s com.tawfiq.scrcapkit.secrets -a "$k" 2>/dev/null
+     security delete-generic-password -s com.tawfiq.trecshare.secrets -a "$k" 2>/dev/null
    done
    ```
-3. Your recordings in `~/Movies/ScrCapKit` are **not** deleted. Remove them yourself if you want.
+3. Your recordings in `~/Movies/TRecShare` are **not** deleted. Remove them yourself if you want.
 4. Uploaded videos stay in your storage until you delete them there.
 
 ---
@@ -537,7 +544,7 @@ Your settings, recordings and permissions are kept.
 ### Project layout
 ```
 Package.swift
-Sources/ScrCapKit/
+Sources/TRecShare/
   App/        entry point, menu-bar item and panel, windows, menus, shortcuts, notifications
   Recording/  RecorderModel (state machine), ScreenRecorder (ScreenCaptureKit), camera, area selector,
               countdown, control bar
@@ -545,7 +552,7 @@ Sources/ScrCapKit/
   Upload/     upload manager, S3/Spaces (SigV4), Google Drive (OAuth + resumable), own server, share page
   Model/      settings, Keychain, library, permissions, helpers
   UI/         menu-bar panel, review, library, settings, welcome
-Tests/ScrCapKitTests/   signing test vectors, naming, escaping, validation, video maths, voice levelling
+Tests/TRecShareTests/   signing test vectors, naming, escaping, validation, video maths, voice levelling
 Support/                Info.plist, entitlements, app icon
 scripts/build-app.sh    build, sign (hardened runtime), DMG, notarize
 .github/workflows/      CI: build and test on every push and pull request
@@ -593,10 +600,10 @@ Apps for other people's Macs must be signed with a **Developer ID** certificate 
 *System Settings → Privacy & Security → Open Anyway*.
 
 ```bash
-xcrun notarytool store-credentials scrcapkit       # once: Apple ID + app-specific password + team ID
+xcrun notarytool store-credentials trecshare       # once: Apple ID + app-specific password + team ID
 SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-NOTARY_PROFILE=scrcapkit UNIVERSAL=1 \
-./scripts/build-app.sh --dmg                        # → build/ScrCapKit-<version>.dmg, notarized and stapled
+NOTARY_PROFILE=trecshare UNIVERSAL=1 \
+./scripts/build-app.sh --dmg                        # → build/TRecShare-<version>.dmg, notarized and stapled
 ```
 
 Bump `CFBundleShortVersionString` and `CFBundleVersion` in `Support/Info.plist` for each release, and attach the
@@ -606,7 +613,7 @@ DMG to a **GitHub Release** (DMG files are git-ignored so they can't be committe
 
 ## Legal and license
 
-ScrCapKit is an independent project and is **not affiliated with, endorsed by, or sponsored by Apple Inc.**
+TRecShare is an independent project and is **not affiliated with, endorsed by, or sponsored by Apple Inc.**
 It is built with Apple's ScreenCaptureKit framework. Apple and macOS are trademarks of Apple Inc.
 
 MIT License. See [LICENSE](LICENSE).

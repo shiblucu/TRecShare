@@ -20,7 +20,7 @@ final class UploadManager: ObservableObject {
 
     private init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("ScrCapKit", isDirectory: true)
+            .appendingPathComponent("TRecShare", isDirectory: true)
         try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
         storeURL = support.appendingPathComponent("uploads.json")
         load()
@@ -95,7 +95,7 @@ final class UploadManager: ObservableObject {
 
     private func run(url: URL, uploader: Uploader, destination: UploadDestination, quality: UploadQuality) async {
         let key = url.path
-        let work = FileManager.default.temporaryDirectory.appendingPathComponent("scrcapkit-\(RandomID.make(length: 8))")
+        let work = FileManager.default.temporaryDirectory.appendingPathComponent("trecshare-\(RandomID.make(length: 8))")
         defer {
             try? FileManager.default.removeItem(at: work)
             tasks[key] = nil
