@@ -1,6 +1,11 @@
 import AppKit
 import Foundation
 
+extension Notification.Name {
+    /// Posted with the file URL after a recording is moved to the Trash.
+    static let recordingTrashed = Notification.Name("TRecShare.recordingTrashed")
+}
+
 struct RecordingItem: Identifiable, Hashable {
     var id: String { url.path }
     let url: URL
@@ -64,6 +69,7 @@ final class RecordingLibrary: ObservableObject {
         UploadManager.shared.fileDeleted(url)
         RecorderModel.shared.fileDeleted(url)
         refresh()
+        NotificationCenter.default.post(name: .recordingTrashed, object: url)
     }
 
     private func watch() {

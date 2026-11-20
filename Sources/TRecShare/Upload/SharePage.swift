@@ -1,8 +1,15 @@
+import CryptoKit
 import Foundation
 
 /// The web page clients open: title, player, download button.
 /// Everything user-provided is HTML-escaped; the page loads no third-party scripts.
 enum SharePage {
+    /// The page's only script: the Copy link button. Allowed by its hash in the CSP, so nothing else can run.
+    static let copyScript = "(function(){var b=document.getElementById('copy');if(!b||!navigator.clipboard)return;b.hidden=false;b.addEventListener('click',function(){navigator.clipboard.writeText(location.href).then(function(){b.textContent='Link copied';setTimeout(function(){b.textContent='Copy link'},2000)})})})();"
+    static var copyScriptHash: String {
+        Data(SHA256.hash(data: Data(copyScript.utf8))).base64EncodedString()
+    }
+
     static func html(title: String, videoURL: String, posterURL: String?, downloadName: String,
                      duration: TimeInterval, recordedAt: Date, width: Int, height: Int) -> String {
         let t = HTML.escape(title)
@@ -21,7 +28,7 @@ enum SharePage {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="robots" content="noindex, nofollow">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src * blob:; img-src * data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-\(copyScriptHash)'; media-src * blob:; img-src * data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
         <meta name="referrer" content="no-referrer">
         <title>\(t)</title>
         <meta property="og:title" content="\(t)">
@@ -40,8 +47,10 @@ enum SharePage {
           .player { background:#000; border-radius: 14px; overflow:hidden; box-shadow: 0 10px 40px rgba(0,0,0,.18); aspect-ratio: \(ratio); max-height: 80vh; margin: 0 auto; }
           video { width:100%; height:100%; display:block; background:#000; }
           .bar { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-top: 16px; }
-          a.btn { display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:10px; background:var(--card); color:var(--text); text-decoration:none; border:1px solid var(--line); font-weight:600; font-size:14px; }
-          a.btn:hover { border-color: var(--accent); }
+          .btn { display:inline-flex; cursor:pointer; font-family:inherit; align-items:center; gap:8px; padding:10px 16px; border-radius:10px; background:var(--card); color:var(--text); text-decoration:none; border:1px solid var(--line); font-weight:600; font-size:14px; }
+          .btn:hover { border-color: var(--accent); }
+          .actions { display:flex; gap:8px; flex-wrap:wrap; }
+          .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
           footer { color: var(--muted); font-size: 13px; }
         </style>
         </head>
@@ -56,10 +65,14 @@ enum SharePage {
             </video>
           </div>
           <div class="bar">
-            <a class="btn" href="\(v)" download="\(HTML.escape(downloadName))">⬇︎ Download</a>
+            <div class="actions">
+              <a class="btn" href="\(v)" download="\(HTML.escape(downloadName))">⬇︎ Download</a>
+              <button class="btn primary" id="copy" type="button" hidden>Copy link</button>
+            </div>
             <footer>Recorded with TRecShare</footer>
           </div>
         </main>
+        <script>\(copyScript)</script>
         </body>
         </html>
         """

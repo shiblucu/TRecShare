@@ -225,7 +225,13 @@ final class StatusItemController: NSObject {
         case .recording, .paused:
             add("Finish Recording") { [model] in model.stopRecording() }
             add(model.state == .paused ? "Resume" : "Pause") { [model] in model.togglePause() }
-            add("Delete Recording") { [model] in model.discardRecording() }
+            if model.micInRecording {
+                add(model.micMuted ? "Unmute Microphone" : "Mute Microphone") { [model] in model.toggleMicMute() }
+            }
+            if model.cameraInRecording {
+                add(model.cameraHidden ? "Show Camera" : "Hide Camera") { [model] in model.toggleCameraHidden() }
+            }
+            add("Delete Recording…") { [model] in RecordingPrompts.confirmDiscard(model) }
         case .idle:
             add("Start Recording") { [model] in model.startRecording() }
         default:

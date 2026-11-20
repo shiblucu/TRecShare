@@ -62,6 +62,13 @@ final class RecorderModel: ObservableObject {
     @Published private(set) var needsMicrophonePermission = false
     @Published private(set) var needsCameraPermission = false
     @Published var panelVisible = false { didSet { updateCameraBubble() } }
+    /// Microphone muted from the control bar during the current recording.
+    @Published private(set) var micMuted = false
+    /// Camera bubble hidden from the control bar during the current recording (it's a real window, so it leaves the video too).
+    @Published private(set) var cameraHidden = false
+    /// What the running recording actually captures (fixed at start), so the controls match the video.
+    @Published private(set) var micInRecording = false
+    @Published private(set) var cameraInRecording = false
 
     /// Called right before capture UI appears, so the menu-bar panel can close.
     var onWillCapture: (() -> Void)?
@@ -210,6 +217,7 @@ final class RecorderModel: ObservableObject {
     func updateCameraBubble() {
         let active = state.isStarting || state.isCapturing
         let wanted = settings.cameraEnabled && Permissions.status(for: .video) == .granted && (panelVisible || active)
+            && !(cameraHidden && state.isCapturing)
         if wanted {
             let screen = targetScreen ?? selectedDisplayID.flatMap(Self.screen(for:))
             CameraBubble.shared.show(deviceID: settings.cameraID, size: settings.cameraSize, on: screen)
@@ -271,6 +279,30 @@ final class RecorderModel: ObservableObject {
                 stopRecording()
             }
         }
+    }
+
+    /// Mutes or unmutes the microphone mid-recording. A short part boundary is made, like pause → resume.
+    func toggleMicMute() {
+        guard state.isCapturing, micInRecording else { return }
+        let muted = !micMuted
+        micMuted = muted
+        Accessibility.announce(muted ? "Microphone muted" : "Microphone on")
+        Task {
+            do {
+                try await recorder.setMicrophoneCapture(!muted)
+            } catch {
+                errorMessage = "Could not switch the microphone: \(error.localizedDescription). The part recorded so far is being saved."
+                stopRecording()
+            }
+        }
+    }
+
+    /// Hides or shows the camera bubble while recording.
+    func toggleCameraHidden() {
+        guard state.isCapturing, cameraInRecording else { return }
+        cameraHidden.toggle()
+        updateCameraBubble()
+        Accessibility.announce(cameraHidden ? "Camera hidden" : "Camera shown")
     }
 
     func stopRecording() {
@@ -446,6 +478,10 @@ final class RecorderModel: ObservableObject {
         accumulated = 0
         elapsed = 0
         segmentStartedAt = Date()
+        micMuted = false
+        cameraHidden = false
+        micInRecording = config.captureMicrophone
+        cameraInRecording = window == nil && CameraBubble.shared.isVisible
         state = .recording
         startTimer()
         activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleDisplaySleepDisabled],
@@ -633,6 +669,10 @@ final class RecorderModel: ObservableObject {
 
     private func tearDownCaptureUI() {
         stopTimer()
+        micMuted = false
+        cameraHidden = false
+        micInRecording = false
+        cameraInRecording = false
         ControlBar.hide()
         AreaOutline.hide()
         CountdownOverlay.hide()

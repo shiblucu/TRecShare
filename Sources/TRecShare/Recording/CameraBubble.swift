@@ -164,7 +164,10 @@ private final class BubbleView: NSView {
             menu.addItem(item)
         }
         menu.addItem(.separator())
-        let hide = NSMenuItem(title: "Turn Camera Off", action: #selector(turnOff), keyEquivalent: "")
+        // While recording, hiding is temporary and matches the control bar's Hide camera button.
+        let recording = RecorderModel.shared.cameraInRecording
+        let hide = NSMenuItem(title: recording ? "Hide Camera" : "Turn Camera Off",
+                              action: recording ? #selector(hideDuringRecording) : #selector(turnOff), keyEquivalent: "")
         hide.target = self
         menu.addItem(hide)
         return menu
@@ -180,6 +183,10 @@ private final class BubbleView: NSView {
         guard let raw = sender.representedObject as? String, let shape = CameraShape(rawValue: raw) else { return }
         AppSettings.shared.cameraShape = shape
         CameraBubble.shared.setSize(AppSettings.shared.cameraSize)
+    }
+
+    @objc private func hideDuringRecording() {
+        RecorderModel.shared.toggleCameraHidden()
     }
 
     @objc private func turnOff() {

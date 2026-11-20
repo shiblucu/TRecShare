@@ -14,8 +14,12 @@ enum Theme {
 struct UploadStatusView: View {
     let url: URL
     var compact = false
+    /// Where to upload; nil means the default from Settings.
+    var destination: UploadDestination? = nil
     @EnvironmentObject private var uploads: UploadManager
     @EnvironmentObject private var settings: AppSettings
+
+    private var target: UploadDestination { destination ?? settings.uploadDestination }
 
     var body: some View {
         Group {
@@ -30,7 +34,8 @@ struct UploadStatusView: View {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                         Text(message).font(.caption).lineLimit(compact ? 2 : 4).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
-                        if settings.missingSetup(for: settings.uploadDestination) != nil {
+                        // Retry goes to the destination that failed, wherever the upload was started.
+                        if settings.missingSetup(for: uploads.destination(for: url) ?? target) != nil {
                             Button("Settings") { WindowRouter.shared.showSettings(tab: .uploads) }
                         } else {
                             Button("Retry") { uploads.upload(url) }
@@ -80,7 +85,7 @@ struct UploadStatusView: View {
     @ViewBuilder
     private var uploadButton: some View {
         HStack(spacing: 6) {
-            if settings.uploadDestination == .none {
+            if target == .none {
                 Button {
                     WindowRouter.shared.showSettings(tab: .uploads)
                 } label: {
@@ -92,17 +97,19 @@ struct UploadStatusView: View {
                 Menu {
                     Section("Upload size") {
                         ForEach(UploadQuality.allCases) { q in
-                            Button(q.title) { uploads.upload(url, quality: q) }
+                            Button(q.title) { uploads.upload(url, to: target, quality: q) }
                         }
                     }
                 } label: {
                     Label("Upload & copy link", systemImage: "icloud.and.arrow.up")
                 } primaryAction: {
-                    uploads.upload(url)
+                    uploads.upload(url, to: target)
                 }
                 .fixedSize()
-                .help("Uploads to \(settings.uploadDestination.shortTitle) at \(settings.uploadQuality.shortTitle). Use the arrow for other sizes.")
-                Text("to \(settings.uploadDestination.shortTitle)").font(.caption).foregroundStyle(.secondary)
+                .help("Uploads to \(target.shortTitle) at \(settings.uploadQuality.shortTitle). Use the arrow for other sizes.")
+                if destination == nil {
+                    Text("to \(target.shortTitle)").font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 0)
         }

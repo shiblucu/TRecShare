@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import TRecShare
@@ -99,6 +100,17 @@ struct SharePageTests {
         #expect(html.contains("v.mp4?a=1&amp;b=&quot;2&quot;"))
         #expect(html.contains("Content-Security-Policy"))
         #expect(html.contains("01:05"))
+    }
+
+    @Test func copyLinkScriptIsAllowedByCSP() throws {
+        let html = SharePage.html(title: "t", videoURL: "https://x/v.mp4", posterURL: nil, downloadName: "t.mp4",
+                                  duration: 1, recordedAt: Date(), width: 1920, height: 1080)
+        let start = try #require(html.range(of: "<script>"))
+        let end = try #require(html.range(of: "</script>", range: start.upperBound..<html.endIndex))
+        let script = String(html[start.upperBound..<end.lowerBound])
+        let hash = Data(SHA256.hash(data: Data(script.utf8))).base64EncodedString()
+        #expect(html.contains("script-src 'sha256-\(hash)'"))
+        #expect(html.components(separatedBy: "<script").count == 2)   // exactly one script
     }
 
     @Test func joinsURLs() {

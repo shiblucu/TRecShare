@@ -16,6 +16,8 @@ final class UploadManager: ObservableObject {
     @Published private(set) var records: [String: UploadResult] = [:] // keyed by file path
 
     private var tasks: [String: Task<Void, Never>] = [:]
+    /// Destination of a running or failed upload, so Retry (from the Library, Review or panel) goes to the same place.
+    private var jobDestinations: [String: UploadDestination] = [:]
     private let storeURL: URL
 
     private init() {
@@ -61,7 +63,8 @@ final class UploadManager: ObservableObject {
         let key = url.path
         guard tasks[key] == nil else { return }
         let settings = AppSettings.shared
-        let dest = destination ?? settings.uploadDestination
+        let dest = destination ?? jobDestinations[key] ?? settings.uploadDestination
+        jobDestinations[key] = dest
         let quality = quality ?? settings.uploadQuality
 
         let uploader: Uploader
@@ -90,8 +93,14 @@ final class UploadManager: ObservableObject {
     }
 
     func dismissError(_ url: URL) {
-        if case .failed = jobs[url.path] { jobs[url.path] = nil }
+        if case .failed = jobs[url.path] {
+            jobs[url.path] = nil
+            jobDestinations[url.path] = nil
+        }
     }
+
+    /// Where a running or failed upload of this file is going.
+    func destination(for url: URL) -> UploadDestination? { jobDestinations[url.path] }
 
     private func run(url: URL, uploader: Uploader, destination: UploadDestination, quality: UploadQuality) async {
         let key = url.path
@@ -147,16 +156,20 @@ final class UploadManager: ObservableObject {
             records[key] = result
             save()
             jobs[key] = nil
+            jobDestinations[key] = nil
             Pasteboard.copy(result.link.absoluteString)
             Notifier.shared.uploadFinished(link: result.link, title: item.title)
             if AppSettings.shared.openLinkAfterUpload { NSWorkspace.shared.open(result.link) }
             Log.upload.info("upload finished")
         } catch is CancellationError {
             jobs[key] = nil
+            jobDestinations[key] = nil
         } catch Transcoder.TranscodeError.cancelled {
             jobs[key] = nil
+            jobDestinations[key] = nil
         } catch let error as URLError where error.code == .cancelled {
             jobs[key] = nil
+            jobDestinations[key] = nil
         } catch {
             Log.upload.error("upload failed: \(error.localizedDescription)")
             jobs[key] = .failed(error.localizedDescription)
@@ -169,12 +182,14 @@ final class UploadManager: ObservableObject {
     func fileRenamed(from old: URL, to new: URL) {
         if let r = records.removeValue(forKey: old.path) { records[new.path] = r; save() }
         if let j = jobs.removeValue(forKey: old.path) { jobs[new.path] = j }
+        if let d = jobDestinations.removeValue(forKey: old.path) { jobDestinations[new.path] = d }
     }
 
     func fileDeleted(_ url: URL) {
         cancel(url)
         if records.removeValue(forKey: url.path) != nil { save() }
         jobs[url.path] = nil
+        jobDestinations[url.path] = nil
     }
 
     private func load() {
