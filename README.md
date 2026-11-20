@@ -95,13 +95,11 @@ You should see a version number (5.10 or newer). If you only installed Xcode, op
 Either clone with git (recommended, makes updating easy):
 
 ```bash
-git clone https://github.com/<your-account>/TRecShare.git
+git clone https://github.com/shiblucu/TRecShare.git
 cd TRecShare
 ```
 
 or on GitHub click **Code → Download ZIP**, unzip it, and `cd` into the folder.
-
-> Replace `<your-account>` with the account the repository is under.
 
 ### 3. Build the app
 
