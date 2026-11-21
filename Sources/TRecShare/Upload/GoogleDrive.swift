@@ -364,6 +364,15 @@ struct DriveClient: Sendable {
         return resp.statusCode == 308 ? (Self.nextOffset(resp) ?? 0) : nil
     }
 
+    /// Moves the file to the Drive trash (recoverable for 30 days). A file that's already gone is fine.
+    func trashFile(_ fileID: String) async throws {
+        do {
+            _ = try await json("PATCH", "https://www.googleapis.com/drive/v3/files/\(fileID)?fields=id", body: ["trashed": true])
+        } catch let error as UploadError where error.message.contains("File not found") {
+            return
+        }
+    }
+
     func deleteFile(_ fileID: String) async throws {
         _ = try await json("DELETE", "https://www.googleapis.com/drive/v3/files/\(fileID)")
     }
@@ -379,6 +388,7 @@ struct DriveUploader: Uploader {
     let folderID: String
     let anyoneWithLink: Bool
     let onFolderID: @Sendable (String) -> Void
+    let account: String
 
     @MainActor
     static func fromSettings() throws -> DriveUploader {
@@ -387,7 +397,16 @@ struct DriveUploader: Uploader {
         guard Keychain.has(.driveRefreshToken) else { throw UploadError("Sign in to Google Drive in Settings → Uploads.") }
         return DriveUploader(client: DriveClient(clientID: s.driveClientID.trimmed, clientSecret: Keychain.get(.driveClientSecret)),
                              folderID: s.driveFolderID, anyoneWithLink: s.driveAnyoneWithLink,
-                             onFolderID: { id in Task { @MainActor in AppSettings.shared.driveFolderID = id } })
+                             onFolderID: { id in Task { @MainActor in AppSettings.shared.driveFolderID = id } },
+                             account: s.driveAccount.trimmed)
+    }
+
+    func deleteUpload(_ result: UploadResult) async throws {
+        try UploadError.checkAccount(saved: result.account, current: account, what: "Google account")
+        guard let id = result.remoteID, id.range(of: #"^[A-Za-z0-9_-]{10,200}$"#, options: .regularExpression) != nil else {
+            throw UploadError("The saved location of this upload isn't valid, so it can't be deleted from here.")
+        }
+        try await HTTP.withRetry { try await client.trashFile(id) }
     }
 
     func upload(_ item: UploadItem, progress: @escaping @Sendable (Double) -> Void) async throws -> UploadResult {
@@ -410,7 +429,7 @@ struct DriveUploader: Uploader {
             throw UploadError("Google Drive didn't return a usable link.")
         }
         return UploadResult(destination: UploadDestination.drive.rawValue, link: link, videoURL: nil,
-                            remoteID: id, uploadedAt: Date(), expiresAt: nil)
+                            remoteID: id, uploadedAt: Date(), expiresAt: nil, account: account.isEmpty ? nil : account)
     }
 
     func testConnection() async throws -> String {

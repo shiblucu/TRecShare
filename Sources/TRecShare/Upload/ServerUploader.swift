@@ -113,7 +113,46 @@ struct ServerUploader: Uploader {
         }
         progress(1)
         return UploadResult(destination: UploadDestination.server.rawValue, link: link, videoURL: videoURL,
-                            remoteID: folder, uploadedAt: Date(), expiresAt: nil)
+                            remoteID: folder, uploadedAt: Date(), expiresAt: nil, account: account)
+    }
+
+    var account: String {
+        switch method {
+        case let .sftp(host, _, user, remotePath, _): return "\(user)@\(host):\(remotePath)"
+        case let .http(uploadURL, _): return uploadURL.absoluteString
+        }
+    }
+
+    /// Removes the upload's folder (video, poster and share page).
+    func deleteUpload(_ result: UploadResult) async throws {
+        try UploadError.checkAccount(saved: result.account, current: account, what: "server")
+        let safe = #"^[A-Za-z0-9._-]+$"#
+        guard let folder = result.remoteID, folder.range(of: safe, options: .regularExpression) != nil, folder != ".", folder != ".." else {
+            throw UploadError("The saved location of this upload isn't valid, so it can't be deleted from here.")
+        }
+        var names = ["poster.jpg", "index.html"]
+        if let video = result.videoURL?.lastPathComponent, video.range(of: safe, options: .regularExpression) != nil { names.insert(video, at: 0) }
+
+        switch method {
+        case let .sftp(host, port, user, remotePath, keyPath):
+            // "-" in front: carry on when a file doesn't exist (a poster or page that was never created).
+            var commands = names.map { "-rm \"\(remotePath)/\(folder)/\($0)\"" }
+            commands.append("-rmdir \"\(remotePath)/\(folder)\"")
+            try await SFTP.run(commands, host: host, port: port, user: user, keyPath: keyPath)
+        case let .http(uploadURL, token):
+            func send(_ url: URL, mustWork: Bool) async throws {
+                var req = URLRequest(url: url)
+                req.httpMethod = "DELETE"
+                if let token, !token.isEmpty { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+                let (data, resp) = try await HTTP.send(req)
+                if resp.statusCode == 404 || (!mustWork && !(200...299).contains(resp.statusCode)) { return }
+                if resp.statusCode == 405 { throw UploadError("The server doesn't allow deleting files (405). Enable DELETE (WebDAV) on it, or delete the folder yourself.") }
+                try Self.check(data, resp)
+            }
+            let folderURL = joinURL(uploadURL.absoluteString, folder)
+            for name in names { try await HTTP.withRetry { try await send(URL(string: joinURL(folderURL, name))!, mustWork: true) } }
+            try? await send(URL(string: folderURL + "/")!, mustWork: false)   // the empty folder; fine if the server keeps it
+        }
     }
 
     static func check(_ data: Data, _ resp: HTTPURLResponse) throws {
