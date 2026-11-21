@@ -33,11 +33,11 @@ struct RecorderPanel: View {
                                   systemImage: "camera.viewfinder")
                                 .frame(maxWidth: .infinity)
                         }
+                        .buttonStyle(.brandSecondary)
                         .controlSize(.large)
                         .help("Saves a PNG and copies it to the clipboard (\(HotKeys.screenshot.display))")
                     }
                     HStack {
-                        Toggle("3-second countdown", isOn: $settings.countdownEnabled).toggleStyle(.checkbox)
                         Spacer()
                         if settings.hotkeysEnabled {
                             Text("\(HotKeys.toggleRecording.display) record · \(HotKeys.screenshot.display) screenshot").foregroundStyle(.secondary)
@@ -315,14 +315,12 @@ struct RecorderPanel: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let symbol { Image(systemName: symbol).font(.system(size: 11, weight: .bold)) }
-                Text(title).font(.system(size: 14, weight: .semibold)).monospacedDigit()
+                Text(title).monospacedDigit()
             }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(RoundedRectangle(cornerRadius: 10).fill(color))
-            .contentShape(Rectangle())
+            .frame(minHeight: 4)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BrandButtonStyle(kind: .primary, tint: color))
+        .controlSize(.large)
     }
 
     // MARK: - Messages

@@ -205,7 +205,8 @@ A small floating bar near the bottom of the screen:
 - **Delete**: throw the recording away (asks for confirmation). The **⌥⇧C** shortcut deletes at once, without asking.
 - **Mute microphone**: the video is silent until you unmute. Each switch starts a new part, like pause and
   resume, so there can be a split-second gap.
-- **Hide camera**: takes the camera bubble out of the video until you show it again.
+- **Hide camera**: takes the camera bubble out of the video until you show it again. The camera keeps running
+  while hidden (its light stays on), so it comes back instantly in the same place.
 - **Finish** (⌥⇧R): stop and save.
 
 The same controls are in the menu-bar panel and the right-click menu while you record.

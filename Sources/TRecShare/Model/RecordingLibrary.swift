@@ -2,6 +2,8 @@ import AppKit
 import Foundation
 
 extension Notification.Name {
+    /// Asks the app to open the menu-bar recorder panel so the user can choose options before recording.
+    static let showRecorderPanel = Notification.Name("TRecShare.showRecorderPanel")
     /// Posted with the file URL after a recording is moved to the Trash.
     static let recordingTrashed = Notification.Name("TRecShare.recordingTrashed")
 }

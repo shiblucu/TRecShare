@@ -124,6 +124,8 @@ private struct RecordingSettings: View {
             }
             Section("Start") {
                 Toggle("3-second countdown", isOn: $settings.countdownEnabled)
+                Text("Counts 3, 2, 1 before recording starts, and outlines the screen that will be recorded. Click the number to cancel.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

@@ -100,6 +100,7 @@ struct SharePageTests {
         #expect(html.contains("v.mp4?a=1&amp;b=&quot;2&quot;"))
         #expect(html.contains("Content-Security-Policy"))
         #expect(html.contains("01:05"))
+        #expect(html.contains("href=\"https://github.com/shiblucu/TRecShare\""))
     }
 
     @Test func copyLinkScriptIsAllowedByCSP() throws {

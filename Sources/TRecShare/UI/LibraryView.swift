@@ -130,7 +130,8 @@ struct LibraryView: View {
             Button { NSWorkspace.shared.open(library.folder) } label: { Image(systemName: "folder") }
                 .help("Open the recordings folder in Finder")
             Button {
-                model.startRecording()
+                // Open the recorder panel to choose display, audio and camera first; recording starts from there.
+                NotificationCenter.default.post(name: .showRecorderPanel, object: nil)
             } label: {
                 Label("New Recording", systemImage: "record.circle")
             }

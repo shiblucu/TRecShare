@@ -46,7 +46,14 @@ final class RecorderModel: ObservableObject {
     @Published private(set) var windows: [WindowChoice] = []
     @Published private(set) var microphones: [DeviceChoice] = []
     @Published private(set) var cameras: [DeviceChoice] = []
-    @Published var selectedDisplayID: CGDirectDisplayID?
+    @Published var selectedDisplayID: CGDirectDisplayID? {
+        didSet {
+            guard selectedDisplayID != oldValue, !state.isStarting, !state.isCapturing,
+                  let screen = selectedDisplayID.flatMap(Self.screen(for:)) else { return }
+            if oldValue != nil, NSScreen.screens.count > 1 { DisplayHighlight.flash(on: screen) }
+            CameraBubble.shared.move(to: screen)   // the bubble follows the chosen display
+        }
+    }
     @Published var selectedWindowID: CGWindowID?
 
     // Status
@@ -217,12 +224,19 @@ final class RecorderModel: ObservableObject {
     func updateCameraBubble() {
         let active = state.isStarting || state.isCapturing
         let wanted = settings.cameraEnabled && Permissions.status(for: .video) == .granted && (panelVisible || active)
-            && !(cameraHidden && state.isCapturing)
+        let bubble = CameraBubble.shared
+        if wanted && cameraHidden && state.isCapturing {
+            bubble.setTemporarilyHidden(true)
+            return
+        }
+        if wanted, bubble.isTemporarilyHidden {
+            bubble.setTemporarilyHidden(false)   // back where it was, camera already running
+        }
         if wanted {
             let screen = targetScreen ?? selectedDisplayID.flatMap(Self.screen(for:))
             CameraBubble.shared.show(deviceID: settings.cameraID, size: settings.cameraSize, on: screen)
-        } else if CameraBubble.shared.isVisible {
-            CameraBubble.shared.hide()
+        } else if bubble.isVisible || bubble.isTemporarilyHidden {
+            bubble.hide()
         }
     }
 
@@ -248,6 +262,7 @@ final class RecorderModel: ObservableObject {
         startTask?.cancel()
         startTask = nil
         CountdownOverlay.hide()
+        DisplayHighlight.hide()
         if state == .selectingArea { AreaSelector.cancel() }
         if state.isStarting { state = .idle }
         targetScreen = nil
@@ -429,6 +444,7 @@ final class RecorderModel: ObservableObject {
 
         // Countdown
         if settings.countdownEnabled, let screen = targetScreen ?? NSScreen.main {
+            DisplayHighlight.flash(on: screen, duration: 1.6)   // ~2 s with the fade: which screen is about to record
             for n in stride(from: 3, through: 1, by: -1) {
                 state = .countdown(n)
                 CountdownOverlay.show(n, on: screen) { [weak self] in self?.cancelStart() }
@@ -649,8 +665,13 @@ final class RecorderModel: ObservableObject {
 
     private func afterRecording(_ url: URL) {
         RecordingLibrary.shared.refresh()
-        if settings.autoUpload, settings.canUpload {
-            UploadManager.shared.upload(url)
+        if settings.autoUpload, settings.uploadDestination != .none {
+            if let missing = settings.missingSetup(for: settings.uploadDestination) {
+                // The original is already saved on this Mac; say why nothing was uploaded instead of skipping silently.
+                errorMessage = "Saved on this Mac. Automatic upload was skipped: \(missing)"
+            } else {
+                UploadManager.shared.upload(url)
+            }
         }
         if settings.openReviewAfterRecording {
             WindowRouter.shared.showReview(url)

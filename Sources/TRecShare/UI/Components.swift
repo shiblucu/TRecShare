@@ -10,6 +10,44 @@ enum Theme {
     static let accentSoft = accent.opacity(0.12)
 }
 
+/// Brand button styles: a filled primary for the main action, a soft secondary for the rest.
+/// Both show hover, pressed and disabled states and keep a visible focus ring for keyboard users.
+struct BrandButtonStyle: ButtonStyle {
+    enum Kind { case primary, secondary }
+    var kind: Kind = .primary
+    var tint: Color = Theme.accent
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(kind == .primary ? Color.white : tint)
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .background(
+                shape.fill(kind == .primary
+                           ? AnyShapeStyle(LinearGradient(colors: [tint.opacity(hovering ? 1 : 0.94), tint.opacity(hovering ? 0.88 : 0.8)],
+                                                          startPoint: .top, endPoint: .bottom))
+                           : AnyShapeStyle(tint.opacity(hovering ? 0.18 : 0.10)))
+            )
+            .overlay(shape.strokeBorder(kind == .primary ? Color.white.opacity(0.18) : tint.opacity(0.35), lineWidth: 1))
+            .shadow(color: kind == .primary ? tint.opacity(pressed ? 0.15 : 0.35) : .clear, radius: pressed ? 2 : 6, y: pressed ? 1 : 3)
+            .scaleEffect(pressed ? 0.98 : 1)
+            .opacity(isEnabled ? 1 : 0.45)
+            .contentShape(shape)
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: pressed)
+            .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+}
+
+extension ButtonStyle where Self == BrandButtonStyle {
+    static var brand: BrandButtonStyle { BrandButtonStyle() }
+    static var brandSecondary: BrandButtonStyle { BrandButtonStyle(kind: .secondary) }
+}
+
 /// Upload state for one recording: Upload button → progress → link (copy/open) or error (retry).
 struct UploadStatusView: View {
     let url: URL

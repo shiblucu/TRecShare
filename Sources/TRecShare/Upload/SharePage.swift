@@ -52,6 +52,8 @@ enum SharePage {
           .actions { display:flex; gap:8px; flex-wrap:wrap; }
           .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
           footer { color: var(--muted); font-size: 13px; }
+          footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+          footer a:hover { text-decoration: underline; }
         </style>
         </head>
         <body>
@@ -69,7 +71,7 @@ enum SharePage {
               <a class="btn" href="\(v)" download="\(HTML.escape(downloadName))">⬇︎ Download</a>
               <button class="btn primary" id="copy" type="button" hidden>Copy link</button>
             </div>
-            <footer>Recorded with TRecShare</footer>
+            <footer>Recorded with <a href="https://github.com/shiblucu/TRecShare" target="_blank" rel="noopener noreferrer">TRecShare</a></footer>
           </div>
         </main>
         <script>\(copyScript)</script>

@@ -29,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Notifier.shared.setUp()
         let model = RecorderModel.shared
         statusItem = StatusItemController(model: model)
+        NotificationCenter.default.addObserver(forName: .showRecorderPanel, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.statusItem?.showPopover() }
+        }
         model.onWillCapture = { [weak self] in self?.statusItem?.closePopover() }
 
         AppSettings.shared.$hotkeysEnabled
