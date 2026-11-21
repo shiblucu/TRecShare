@@ -64,10 +64,9 @@ final class ScreenRecorder: NSObject {
 
     private func startSession(filter: SCContentFilter, configuration: SCStreamConfiguration, near outputURL: URL) async throws {
         guard workDir == nil else { throw RecorderError.alreadyRunning }
-        let folder = outputURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let dir = try FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask,
-                                              appropriateFor: outputURL, create: true)
+        // Parts go in a hidden folder next to the recordings (same disk, so joining is fast). If the app is
+        // killed mid-recording, `RecordingRecovery` finds them on the next launch and saves what it can.
+        let dir = try RecordingRecovery.makeSessionFolder(for: outputURL)
         self.filter = filter
         self.streamConfig = configuration
         self.workDir = dir
@@ -228,7 +227,7 @@ final class ScreenRecorder: NSObject {
     }
 
     private func cleanUp() {
-        if let workDir { try? FileManager.default.removeItem(at: workDir) }
+        if let workDir { RecordingRecovery.removeSessionFolder(workDir) }
         workDir = nil
         filter = nil
         streamConfig = nil

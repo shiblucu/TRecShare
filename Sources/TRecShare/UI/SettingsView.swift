@@ -8,20 +8,86 @@ final class SettingsNav: ObservableObject {
 }
 
 struct SettingsView: View {
-    enum Tab: String, Hashable { case general, recording, uploads, shortcuts }
+    enum Tab: String, Hashable, CaseIterable, Identifiable {
+        case general, recording, uploads, shortcuts
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .general: return "General"
+            case .recording: return "Recording"
+            case .uploads: return "Uploads"
+            case .shortcuts: return "Shortcuts & About"
+            }
+        }
+        var icon: String {
+            switch self {
+            case .general: return "gearshape"
+            case .recording: return "record.circle"
+            case .uploads: return "icloud.and.arrow.up"
+            case .shortcuts: return "keyboard"
+            }
+        }
+        /// Shown on hover, so each icon says what it opens.
+        var help: String {
+            switch self {
+            case .general: return "Recordings folder, what happens after recording, appearance and login"
+            case .recording: return "Video quality, cursor, camera, audio and countdown"
+            case .uploads: return "Where recordings are uploaded and how links are shared"
+            case .shortcuts: return "Keyboard shortcuts, updates and information about TRecShare"
+            }
+        }
+    }
 
     @EnvironmentObject private var settings: AppSettings
     @ObservedObject private var nav = SettingsNav.shared
 
     var body: some View {
-        TabView(selection: $nav.tab) {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }.tag(Tab.general)
-            RecordingSettings().tabItem { Label("Recording", systemImage: "record.circle") }.tag(Tab.recording)
-            UploadSettings().tabItem { Label("Uploads", systemImage: "icloud.and.arrow.up") }.tag(Tab.uploads)
-            ShortcutsAbout().tabItem { Label("Shortcuts & About", systemImage: "keyboard") }.tag(Tab.shortcuts)
+        VStack(spacing: 0) {
+            tabBar
+            Divider()
+            Group {
+                switch nav.tab {
+                case .general: GeneralSettings()
+                case .recording: RecordingSettings()
+                case .uploads: UploadSettings()
+                case .shortcuts: ShortcutsAbout()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.top, 8)
         .frame(minWidth: 560, minHeight: 480)
+    }
+
+    /// Toolbar-style tabs; the active one is highlighted in the brand colour.
+    private var tabBar: some View {
+        HStack(spacing: 6) {
+            ForEach(Tab.allCases) { tab in
+                let selected = nav.tab == tab
+                Button { nav.tab = tab } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 18, weight: selected ? .semibold : .regular))
+                            .frame(height: 22)
+                        Text(tab.title).font(.app(.caption).weight(selected ? .semibold : .regular)).lineLimit(1)
+                    }
+                    .foregroundStyle(selected ? Theme.accent : Color.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .frame(minWidth: 84)
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(selected ? Theme.accentSoft : .clear))
+                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(selected ? Theme.accent.opacity(0.35) : .clear, lineWidth: 1))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .hoverLabel(tab.help)
+                .accessibilityLabel(tab.title)
+                .accessibilityHint(tab.help)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -51,6 +117,25 @@ private struct GeneralSettings: View {
                     .disabled(settings.uploadDestination == .none)
                 Toggle("Open the link in the browser after upload", isOn: $settings.openLinkAfterUpload)
                     .disabled(settings.uploadDestination == .none)
+            }
+            Section {
+                AppPicker("Font", selection: $settings.fontStyle) {
+                    ForEach(AppFontStyle.allCases) { style in
+                        Text(style.title).fontDesign(style.design).tag(style)
+                    }
+                }
+                AppPicker("Text size", selection: $settings.textSize) {
+                    ForEach(AppTextSize.allCases) { Text($0.title).tag($0) }
+                }
+                Text("The quick brown fox records a demo.")
+                    .font(.system(size: settings.textSize.bodySize, design: settings.fontStyle.design))
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Preview of the chosen font and size")
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text("Uses macOS system fonts only. The size applies everywhere in the app: the menu-bar panel, floating recording bar, Library, Review, Settings and Welcome windows.")
+                    .font(.app(.caption)).foregroundStyle(.secondary)
             }
             Section("App") {
                 Toggle("Open TRecShare when I log in", isOn: $launchAtLogin)
@@ -93,39 +178,39 @@ private struct RecordingSettings: View {
     var body: some View {
         Form {
             Section("Video") {
-                Picker("Quality", selection: $settings.quality) {
+                AppPicker("Quality", selection: $settings.quality) {
                     ForEach(RecordingQuality.allCases) { Text("\($0.rawValue)  (\($0.sizeHint))").tag($0) }
                 }
-                Picker("Frame rate", selection: $settings.frameRate) {
+                AppPicker("Frame rate", selection: $settings.frameRate) {
                     Text("30 fps (smaller files)").tag(30)
                     Text("60 fps (smoother motion)").tag(60)
                 }
                 Text("Native records every pixel of your display (sharpest text). Recordings use HEVC; upload copies use H.264 so they play everywhere.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.app(.caption)).foregroundStyle(.secondary)
             }
             Section("Cursor") {
                 Toggle("Show the mouse pointer", isOn: $settings.showCursor)
                 Toggle("Highlight clicks", isOn: $settings.highlightClicks)
             }
             Section("Camera") {
-                Picker("Shape", selection: $settings.cameraShape) {
+                AppPicker("Shape", selection: $settings.cameraShape) {
                     ForEach(CameraShape.allCases) { Text($0.title).tag($0) }
                 }
-                Picker("Size", selection: $settings.cameraSize) {
+                AppPicker("Size", selection: $settings.cameraSize) {
                     ForEach(CameraSize.allCases) { Text($0.title).tag($0) }
                 }
                 Text("Drag the camera anywhere. Right-click it to change shape or size. It appears in screen and area recordings.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.app(.caption)).foregroundStyle(.secondary)
             }
             Section("Audio") {
                 Toggle("Even out voice volume in uploaded and smaller copies", isOn: $settings.levelVoice)
                 Text("Quiet voices are raised to a standard level and loud peaks are limited. Your original recording always keeps its own audio.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.app(.caption)).foregroundStyle(.secondary)
             }
             Section("Start") {
                 Toggle("3-second countdown", isOn: $settings.countdownEnabled)
                 Text("Counts 3, 2, 1 before recording starts, and outlines the screen that will be recorded. Click the number to cancel.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.app(.caption)).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -141,9 +226,9 @@ private struct HelpLinks: View {
                 if let url = URL(string: link.url) {
                     Link(destination: url) {
                         Label(link.title, systemImage: "arrow.up.right.square")
-                            .font(.caption)
+                            .font(.app(.caption))
                     }
-                    .help(link.url)
+                    .hoverLabel(link.url)
                 }
             }
         }
@@ -163,11 +248,11 @@ private struct UploadSettings: View {
     var body: some View {
         Form {
             Section {
-                Picker("Upload to", selection: $settings.uploadDestination) {
+                AppPicker("Upload to", selection: $settings.uploadDestination) {
                     ForEach(UploadDestination.allCases) { Label($0.title, systemImage: $0.icon).tag($0) }
                 }
                 if settings.uploadDestination != .none {
-                    Picker("Upload size", selection: $settings.uploadQuality) {
+                    AppPicker("Upload size", selection: $settings.uploadQuality) {
                         ForEach(UploadQuality.allCases) { Text($0.title).tag($0) }
                     }
                     Toggle("Upload automatically after each recording", isOn: $settings.autoUpload)
@@ -177,7 +262,7 @@ private struct UploadSettings: View {
                 }
             } footer: {
                 Text("Your original recording always stays on this Mac. The link is copied to the clipboard when the upload finishes.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.app(.caption)).foregroundStyle(.secondary)
             }
 
             switch settings.uploadDestination {
@@ -196,7 +281,7 @@ private struct UploadSettings: View {
                         Spacer()
                     }
                     if let missing = settings.missingSetup(for: settings.uploadDestination) {
-                        Label(missing, systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
+                        Label(missing, systemImage: "info.circle").font(.app(.caption)).foregroundStyle(.secondary)
                     }
                     if let r = testResult {
                         Label(r.text, systemImage: r.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
@@ -220,7 +305,7 @@ private struct UploadSettings: View {
             TextField("Access key", text: $settings.spacesAccessKey)
             SecretField(title: "Secret key", key: .spacesSecret)
             TextField("Folder in bucket", text: $settings.spacesPrefix, prompt: Text("recordings"))
-            Picker("Who can watch", selection: $settings.spacesLinkAccess) {
+            AppPicker("Who can watch", selection: $settings.spacesLinkAccess) {
                 ForEach(LinkAccess.allCases) { Text($0.title).tag($0) }
             }
             TextField("CDN / custom domain (optional)", text: $settings.spacesPublicBaseURL, prompt: Text("https://my-videos.nyc3.cdn.digitaloceanspaces.com"))
@@ -229,7 +314,7 @@ private struct UploadSettings: View {
             Text("DigitalOcean Spaces (or any S3-compatible storage)")
         } footer: {
             Text("Create a key in DigitalOcean → API → Spaces Keys. The secret is stored in your Keychain. Each upload gets an unguessable link.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.app(.caption)).foregroundStyle(.secondary)
             HelpLinks(links: [
                 ("DigitalOcean Spaces documentation", "https://docs.digitalocean.com/products/spaces/"),
                 ("How to create Spaces access keys", "https://docs.digitalocean.com/products/spaces/how-to/manage-access/")
@@ -265,7 +350,7 @@ private struct UploadSettings: View {
             Text("Google Drive")
         } footer: {
             Text("In Google Cloud Console: enable the Google Drive API, then create an OAuth client of type \"Desktop app\" and paste its ID and secret here. TRecShare only gets access to the files it uploads (folder \"TRecShare › Recordings\" in your Drive, created automatically).\n\nIf Google says \"access_denied\": add your account under Audience → Test users. To stay signed in, fill in Branding (app name, home page, privacy policy link), then press Publish app. When Google warns the app is unverified, choose Advanced → Go to TRecShare.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.app(.caption)).foregroundStyle(.secondary)
             HelpLinks(links: [
                 ("Enable the Google Drive API", "https://console.cloud.google.com/apis/library/drive.googleapis.com"),
                 ("OAuth for desktop apps (Google docs)", "https://developers.google.com/identity/protocols/oauth2/native-app"),
@@ -278,7 +363,7 @@ private struct UploadSettings: View {
 
     private var serverSection: some View {
         Section {
-            Picker("Method", selection: $settings.serverMethod) {
+            AppPicker("Method", selection: $settings.serverMethod) {
                 ForEach(ServerMethod.allCases) { Text($0.title).tag($0) }
             }
             switch settings.serverMethod {
@@ -302,7 +387,7 @@ private struct UploadSettings: View {
             Text(settings.serverMethod == .sftp
                  ? "Uses your SSH key or ssh-agent (no passwords are stored). The folder must be served by your web server at the public URL."
                  : "Files are sent with HTTP PUT (e.g. nginx WebDAV). The token is stored in your Keychain.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.app(.caption)).foregroundStyle(.secondary)
             if settings.serverMethod == .sftp {
                 HelpLinks(links: [
                     ("Add an SSH key to a server (DigitalOcean guide)", "https://docs.digitalocean.com/products/droplets/how-to/add-ssh-keys/"),
@@ -371,6 +456,26 @@ private struct UploadSettings: View {
 
 private struct ShortcutsAbout: View {
     @EnvironmentObject private var settings: AppSettings
+    @ObservedObject private var updates = UpdateChecker.shared
+
+    @ViewBuilder
+    private var updateStatus: some View {
+        switch updates.status {
+        case .available(let release):
+            Button("Download \(release.version)") { NSWorkspace.shared.open(release.page) }
+                .buttonStyle(.link)
+        case .upToDate:
+            Label("Up to date", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.app(.caption))
+        case .noReleases:
+            Text("No releases published yet").font(.app(.caption)).foregroundStyle(.secondary)
+        case .failed(let message):
+            Text(message).font(.app(.caption)).foregroundStyle(.orange).lineLimit(2)
+        case .idle, .checking:
+            if let last = updates.lastChecked {
+                Text("Last checked \(last.formatted(.relative(presentation: .named)))").font(.app(.caption)).foregroundStyle(.secondary)
+            }
+        }
+    }
 
     var body: some View {
         Form {
@@ -381,13 +486,42 @@ private struct ShortcutsAbout: View {
                 LabeledContent("Cancel / delete recording", value: HotKeys.cancelRecording.display)
                 LabeledContent("Take a screenshot", value: HotKeys.screenshot.display)
             }
+            Section("Updates") {
+                Toggle("Check for updates automatically (once a day)", isOn: $settings.checkForUpdatesAutomatically)
+                HStack {
+                    Button(updates.status == .checking ? "Checking…" : "Check for Updates Now") {
+                        Task { await updates.check(userInitiated: true) }
+                    }
+                    .disabled(updates.status == .checking)
+                    if updates.status == .checking { ProgressView().controlSize(.small) }
+                    Spacer()
+                    updateStatus
+                }
+                Text("Checks the TRecShare releases on GitHub. Nothing about you or your recordings is sent. When a new version is out, you get a notification with a link to download it.")
+                    .font(.app(.caption)).foregroundStyle(.secondary)
+            }
             Section("About") {
-                LabeledContent("Version", value: "\(AppInfo.version) (\(AppInfo.build))")
+                HStack(spacing: 14) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable().frame(width: 56, height: 56)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(AppInfo.name).font(.app(.title2).weight(.bold))
+                        Text("Version \(AppInfo.version) (\(AppInfo.build))").foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+                LabeledContent("App name", value: AppInfo.name)
+                LabeledContent("Developer", value: AppInfo.developer)
+                LabeledContent("Source code") {
+                    Link("github.com/shiblucu/TRecShare", destination: AppInfo.repositoryURL)
+                        .hoverLabel(AppInfo.repositoryURL.absoluteString)
+                }
                 LabeledContent("Recordings", value: settings.recordingsFolder.path)
                 Text("TRecShare records your screen, camera and voice and keeps the files on your Mac. Uploads only go to the storage you set up here. No analytics, no tracking.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.app(.caption)).foregroundStyle(.secondary)
                 Text("TRecShare is not affiliated with, endorsed by, or sponsored by Apple Inc. It is built with Apple's ScreenCaptureKit framework.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.app(.caption)).foregroundStyle(.secondary)
                 Button("Open Logs in Console") {
                     NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Console.app"))
                 }

@@ -1,5 +1,6 @@
 import Foundation
 import ServiceManagement
+import SwiftUI
 
 // MARK: - Option types
 
@@ -142,6 +143,59 @@ enum ServerMethod: String, CaseIterable, Identifiable {
     }
 }
 
+/// macOS system typefaces only (no fonts are bundled or downloaded).
+enum AppFontStyle: String, CaseIterable, Identifiable {
+    case standard, rounded, serif, monospaced
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .standard: return "SF Pro (default)"
+        case .rounded: return "SF Pro Rounded"
+        case .serif: return "New York"
+        case .monospaced: return "SF Mono"
+        }
+    }
+    var design: Font.Design {
+        switch self {
+        case .standard: return .default
+        case .rounded: return .rounded
+        case .serif: return .serif
+        case .monospaced: return .monospaced
+        }
+    }
+}
+
+enum AppTextSize: String, CaseIterable, Identifiable {
+    case small, standard, large, extraLarge
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .small: return "Small"
+        case .standard: return "Default"
+        case .large: return "Large"
+        case .extraLarge: return "Extra large"
+        }
+    }
+    /// Base size for body text, in points (macOS default is 13).
+    var bodySize: CGFloat {
+        switch self {
+        case .small: return 12
+        case .standard: return 13
+        case .large: return 15
+        case .extraLarge: return 17
+        }
+    }
+    /// Multiplier relative to the default (13 pt) body size.
+    var scale: CGFloat { bodySize / 13 }
+    var controlSize: ControlSize {
+        switch self {
+        case .small: return .small
+        case .standard: return .regular
+        case .large, .extraLarge: return .large
+        }
+    }
+}
+
 enum CameraShape: String, CaseIterable, Identifiable {
     case portrait, circle
     var id: String { rawValue }
@@ -239,6 +293,13 @@ final class AppSettings: ObservableObject {
 
     @Published var hasCompletedOnboarding: Bool { didSet { d.set(hasCompletedOnboarding, forKey: "onboarded") } }
 
+    // Appearance
+    @Published var fontStyle: AppFontStyle { didSet { d.set(fontStyle.rawValue, forKey: "appearance.fontStyle") } }
+    @Published var textSize: AppTextSize { didSet { d.set(textSize.rawValue, forKey: "appearance.textSize") } }
+
+    // Updates
+    @Published var checkForUpdatesAutomatically: Bool { didSet { d.set(checkForUpdatesAutomatically, forKey: "updates.automatic") } }
+
     private init() {
         let d = UserDefaults.standard
         captureMode = CaptureMode(rawValue: d.string(forKey: "captureMode") ?? "") ?? .screen
@@ -291,6 +352,10 @@ final class AppSettings: ObservableObject {
         serverPublicBaseURL = d.string(forKey: "server.publicBaseURL") ?? ""
 
         hasCompletedOnboarding = d.bool(forKey: "onboarded")
+
+        fontStyle = AppFontStyle(rawValue: d.string(forKey: "appearance.fontStyle") ?? "") ?? .standard
+        textSize = AppTextSize(rawValue: d.string(forKey: "appearance.textSize") ?? "") ?? .standard
+        checkForUpdatesAutomatically = d.object(forKey: "updates.automatic") as? Bool ?? true
     }
 
     /// One-time move from the app's previous name (ScrCapKit): copies its settings and renames its

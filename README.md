@@ -263,6 +263,8 @@ Open with the **gear** in the panel, the right-click menu, or **⌘,** while a T
 | Open the review window | Show the Review window after each recording. |
 | Upload automatically and copy the link | Upload right after recording (needs an upload destination). |
 | Open the link in the browser after upload | Open the share link when the upload finishes. |
+| Font | SF Pro (default), SF Pro Rounded, New York or SF Mono. macOS system fonts only. |
+| Text size | Small, Default, Large or Extra large. Applies to the whole app: the menu-bar panel, the floating recording bar, and the Library, Review, Settings and Welcome windows. |
 | Open TRecShare when I log in | Launch at login. |
 
 ### Recording
@@ -287,7 +289,11 @@ Open with the **gear** in the panel, the right-click menu, or **⌘,** while a T
 Destination details are explained in [Set up uploads](#set-up-uploads).
 
 ### Shortcuts & About
-Turn global shortcuts on or off, see the list, the version and the recordings folder, and open Console for logs.
+Turn global shortcuts on or off and see the list. **Updates**: check for a new version now, or let TRecShare check
+once a day (on by default). **About**: app name, version, developer, source code link and recordings folder, and a
+button to open Console for logs.
+
+Each settings tab shows a short description when you hover over it.
 
 ---
 
@@ -318,6 +324,13 @@ When an upload finishes, the link is copied to your clipboard and a notification
 
 Each upload goes into its own folder with a random name, for example
 `recordings/2026-11/my-demo-Ab3dE5.../` containing the video, a poster image and `index.html` (the share page).
+
+Recommended: in your Space's **Settings → Lifecycle rules**, turn on **Delete incomplete multipart uploads**
+(for example after 1 day). TRecShare cleans up after a cancelled or failed upload itself, but if the Mac loses
+power mid-upload, unfinished parts could otherwise stay in the bucket and count toward your storage bill.
+
+Uploading again (from the Library or the review window) creates a new copy with a new link. The earlier copy
+stays in your storage until you delete it there.
 
 ### Google Drive
 
@@ -437,7 +450,8 @@ Upload copies are H.264 with AAC audio and "fast start", which plays in every br
 | Settings | `~/Library/Preferences/com.tawfiq.trecshare.plist` |
 | Keys and tokens | macOS Keychain, service `com.tawfiq.trecshare.secrets` |
 | Logs | macOS unified log, subsystem `com.tawfiq.trecshare` |
-| Temporary files | Removed after each recording or upload |
+| Parts of the recording in progress | `<recordings folder>/.trecshare-parts` (hidden; removed when the recording is saved) |
+| Temporary upload files | Removed after each upload |
 
 Recordings and screenshots are readable only by your user account.
 
@@ -493,6 +507,8 @@ Set **Settings → Recording → Quality** to **Native**. When sharing, use **10
 | "The server refused the upload (401)" | The token is wrong. |
 | "(405)" / "(404)" | The upload URL is wrong, or WebDAV/PUT isn't enabled. |
 | "(413)" | Raise the server's upload size limit (`client_max_body_size`). |
+| "The Internet connection appears to be offline" | Uploads stop after a few quick retries instead of waiting. Reconnect, then press **Retry**. |
+| "Recovered an unfinished recording" | TRecShare was closed unexpectedly while recording. The recovered video is in the Library as "… (recovered)". |
 
 **The share link doesn't play**
 For Spaces, the file must be public (**Anyone with the link**) or the signed link must not have expired (7 days).
@@ -542,7 +558,9 @@ place of `trecshare`.
 
 ## Privacy and security
 
-- No analytics, no tracking, no third-party SDKs. Network access only to the storage you configure.
+- No analytics, no tracking, no third-party SDKs. Network access only to the storage you configure, plus the
+  update check: one anonymous request a day to `github.com/shiblucu/TRecShare/releases/latest` (turn it off in
+  **Settings → Shortcuts & About → Updates**).
 - The microphone level meter runs only while the menu-bar panel is open, so macOS shows its microphone
   indicator then. It never records.
 - Keys, tokens and client secrets live in the macOS Keychain (this device only) and are never displayed again.
@@ -571,8 +589,9 @@ place of `trecshare`.
 
 ## Known limitations
 
-- If the app or the Mac crashes in the middle of a recording, that recording is lost: macOS only finalizes the
-  video file when recording stops. (Quitting, logging out and unplugging a display are handled and save the recording.)
+- If the app or the Mac crashes in the middle of a recording, the next launch recovers it as
+  "<name> (recovered).mp4" from the parts saved so far. Only the last few seconds (the part being written at
+  the moment of the crash) are lost. Quitting, logging out and unplugging a display save the full recording.
 - Screenshots are saved locally and copied to the clipboard; they aren't uploaded.
 - Window recordings don't include the camera.
 - Recordings can only be uploaded after they finish; an upload interrupted by quitting the app must be started again.
@@ -650,6 +669,10 @@ NOTARY_PROFILE=trecshare UNIVERSAL=1 \
 
 Bump `CFBundleShortVersionString` and `CFBundleVersion` in `Support/Info.plist` for each release, and attach the
 DMG to a **GitHub Release** (DMG files are git-ignored so they can't be committed by accident).
+
+Tag each release `v<version>`, matching `CFBundleShortVersionString` (for example `v1.1.0`), and don't mark it as a
+pre-release. TRecShare's update check reads the newest release's tag and tells users when it's newer than their
+version; they then download it from the release page.
 
 ---
 

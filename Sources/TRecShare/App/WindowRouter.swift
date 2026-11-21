@@ -79,6 +79,7 @@ final class WindowRouter: NSObject, NSWindowDelegate {
 
     private static func wrap<V: View>(_ view: V) -> some View {
         view
+            .appAppearance()
             .tint(Theme.accent)
             .environmentObject(AppSettings.shared)
             .environmentObject(RecorderModel.shared)

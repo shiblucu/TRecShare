@@ -216,7 +216,7 @@ enum CountdownOverlay {
                     .monospacedDigit()
                     .contentTransition(.numericText(countsDown: true))
                     .animation(reduceMotion ? nil : .snappy, value: model.value)
-                Text("Click to cancel").font(.callout).opacity(0.8)
+                Text("Click to cancel").font(.app(.callout)).opacity(0.8)
             }
             .foregroundStyle(.white)
             .frame(width: 200, height: 200)

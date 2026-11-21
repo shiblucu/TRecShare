@@ -210,3 +210,64 @@ struct S3ValidationTests {
         #expect(throws: UploadError.self) { try S3Validation.prefix("a/b?c") }
     }
 }
+
+@Suite("Crash recovery")
+@MainActor
+struct RecoveryTests {
+    private func tempFolder() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("trecshare-test-\(RandomID.make(length: 8))")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    @Test func sessionFolderIsHiddenAndRemovedCleanly() throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let a = try RecordingRecovery.makeSessionFolder(for: folder.appendingPathComponent("Rec A.mp4"))
+        let b = try RecordingRecovery.makeSessionFolder(for: folder.appendingPathComponent("Rec B.mp4"))
+        #expect(a.deletingLastPathComponent().lastPathComponent == RecordingRecovery.partsFolderName)
+        RecordingRecovery.removeSessionFolder(a)
+        // The other running session must survive.
+        #expect(FileManager.default.fileExists(atPath: b.path))
+        RecordingRecovery.removeSessionFolder(b)
+        #expect(!FileManager.default.fileExists(atPath: b.deletingLastPathComponent().path))
+    }
+
+    @Test func unreadablePartsAreCleanedUpWithoutOutput() async throws {
+        let folder = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let session = try RecordingRecovery.makeSessionFolder(for: folder.appendingPathComponent("Broken.mp4"))
+        try Data("not a video".utf8).write(to: session.appendingPathComponent("segment-001.mp4"))
+        let recovered = await RecordingRecovery.recoverInterruptedRecordings(in: [folder])
+        #expect(recovered.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: session.path))
+        #expect((try FileManager.default.contentsOfDirectory(atPath: folder.path)).isEmpty)
+    }
+
+    @Test func audioFormatKeyHandlesMissingDescriptions() {
+        #expect(AudioFormatKey(nil) == AudioFormatKey(nil))
+    }
+}
+
+@Suite("Update check")
+@MainActor
+struct UpdateCheckTests {
+    @Test func comparesVersionsNumerically() {
+        #expect(UpdateChecker.isNewer("1.0.1", than: "1.0.0"))
+        #expect(UpdateChecker.isNewer("v1.10", than: "1.9.9"))
+        #expect(UpdateChecker.isNewer("2", than: "1.9"))
+        #expect(!UpdateChecker.isNewer("1.0", than: "1.0.0"))
+        #expect(!UpdateChecker.isNewer("1.0.0", than: "1.0.1"))
+        #expect(!UpdateChecker.isNewer("v1.2.0-beta", than: "1.2.0"))
+    }
+
+    @Test func readsReleaseFromRedirectAndOnlyTrustsGitHub() {
+        let tagged = URL(string: "https://github.com/shiblucu/TRecShare/releases/tag/v1.2.0")
+        #expect(UpdateChecker.release(from: tagged)?.version == "1.2.0")
+        // No releases yet: GitHub lands on the list instead of a tag.
+        #expect(UpdateChecker.release(from: URL(string: "https://github.com/shiblucu/TRecShare/releases")) == nil)
+        #expect(UpdateChecker.release(from: URL(string: "https://evil.example/shiblucu/TRecShare/releases/tag/v9")) == nil)
+        #expect(UpdateChecker.release(from: URL(string: "https://github.com/other/repo/releases/tag/v9")) == nil)
+        #expect(UpdateChecker.release(from: URL(string: "https://github.com/shiblucu/TRecShare/releases/tag/latest-build")) == nil)
+    }
+}

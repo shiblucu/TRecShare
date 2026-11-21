@@ -10,6 +10,55 @@ enum Theme {
     static let accentSoft = accent.opacity(0.12)
 }
 
+/// Applies the font and text size chosen in Settings → General → Appearance to a whole window or panel.
+/// Text without its own font uses the chosen size. Text that sets a style (`.app(.caption)`, `.appSize(14)`)
+/// is scaled by the same factor. The view is rebuilt when the choice changes, so every screen updates at once.
+struct AppAppearance: ViewModifier {
+    @ObservedObject private var settings = AppSettings.shared
+
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: settings.textSize.bodySize, design: settings.fontStyle.design))
+            .fontDesign(settings.fontStyle.design)
+            .controlSize(settings.textSize.controlSize)
+            .id("\(settings.textSize.rawValue)-\(settings.fontStyle.rawValue)")
+    }
+}
+
+extension View {
+    func appAppearance() -> some View { modifier(AppAppearance()) }
+}
+
+extension Font {
+    /// macOS point sizes of the text styles at the default setting.
+    private static func baseSize(_ style: Font.TextStyle) -> CGFloat {
+        switch style {
+        case .largeTitle: return 26
+        case .title: return 22
+        case .title2: return 17
+        case .title3: return 15
+        case .headline, .body: return 13
+        case .subheadline, .callout: return 12
+        case .footnote, .caption: return 10
+        case .caption2: return 10
+        @unknown default: return 13
+        }
+    }
+
+    /// A text style that follows the Text size chosen in Settings (SwiftUI's own styles don't on macOS).
+    @MainActor static func app(_ style: Font.TextStyle) -> Font {
+        let settings = AppSettings.shared
+        let weight: Font.Weight = style == .headline ? .semibold : .regular
+        return .system(size: (baseSize(style) * settings.textSize.scale).rounded(), weight: weight, design: settings.fontStyle.design)
+    }
+
+    /// A fixed point size that follows the Text size chosen in Settings.
+    @MainActor static func appSize(_ size: CGFloat, weight: Font.Weight = .regular, design: Font.Design? = nil) -> Font {
+        let settings = AppSettings.shared
+        return .system(size: (size * settings.textSize.scale).rounded(), weight: weight, design: design ?? settings.fontStyle.design)
+    }
+}
+
 /// Brand button styles: a filled primary for the main action, a soft secondary for the rest.
 /// Both show hover, pressed and disabled states and keep a visible focus ring for keyboard users.
 struct BrandButtonStyle: ButtonStyle {
@@ -23,7 +72,7 @@ struct BrandButtonStyle: ButtonStyle {
         let pressed = configuration.isPressed
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         configuration.label
-            .font(.system(size: 14, weight: .semibold))
+            .font(.appSize(14, weight: .semibold))
             .foregroundStyle(kind == .primary ? Color.white : tint)
             .frame(maxWidth: .infinity, minHeight: 40)
             .background(
@@ -96,7 +145,7 @@ struct UploadStatusView: View {
                 case .failed(let message):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                        Text(message).font(.caption).lineLimit(compact ? 2 : 4).fixedSize(horizontal: false, vertical: true)
+                        Text(message).font(.app(.caption)).lineLimit(compact ? 2 : 4).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                         // Retry goes to the destination that failed, wherever the upload was started.
                         if settings.missingSetup(for: uploads.destination(for: url) ?? target) != nil {
@@ -106,7 +155,7 @@ struct UploadStatusView: View {
                         }
                         Button { uploads.dismissError(url) } label: { Image(systemName: "xmark") }
                             .buttonStyle(.borderless)
-                            .help("Dismiss")
+                            .hoverLabel("Dismiss")
                     }
                 }
             } else if let record = uploads.record(for: url) {
@@ -125,7 +174,7 @@ struct UploadStatusView: View {
             } else {
                 ProgressView().controlSize(.small)
             }
-            Text(label).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            Text(label).font(.app(.caption)).foregroundStyle(.secondary).monospacedDigit()
             Spacer(minLength: 4)
             Button("Cancel") { uploads.cancel(url) }
         }
@@ -135,11 +184,11 @@ struct UploadStatusView: View {
         HStack(spacing: 6) {
             Image(systemName: "link").foregroundStyle(.green).accessibilityHidden(true)
             Text(record.link.absoluteString)
-                .font(.caption)
+                .font(.app(.caption))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
-                .help(record.expiresAt.map { "Link expires \($0.formatted(date: .abbreviated, time: .shortened))" } ?? record.link.absoluteString)
+                .hoverLabel(record.expiresAt.map { "Link expires \($0.formatted(date: .abbreviated, time: .shortened))" } ?? record.link.absoluteString)
             Spacer(minLength: 4)
             Button("Copy Link") { Pasteboard.copy(record.link.absoluteString) }
             Button("Open") { NSWorkspace.shared.open(record.link) }
@@ -156,7 +205,7 @@ struct UploadStatusView: View {
                     Label("Set up uploads to share a link", systemImage: "icloud.and.arrow.up")
                 }
                 .buttonStyle(.link)
-                .font(.caption)
+                .font(.app(.caption))
             } else {
                 Menu {
                     Section("Upload size") {
@@ -170,9 +219,9 @@ struct UploadStatusView: View {
                     uploads.upload(url, to: target)
                 }
                 .fixedSize()
-                .help("Uploads to \(target.shortTitle) at \(settings.uploadQuality.shortTitle). Use the arrow for other sizes.")
+                .hoverLabel("Uploads to \(target.shortTitle) at \(settings.uploadQuality.shortTitle). Use the arrow for other sizes.")
                 if destination == nil {
-                    Text("to \(target.shortTitle)").font(.caption).foregroundStyle(.secondary)
+                    Text("to \(target.shortTitle)").font(.app(.caption)).foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 0)
@@ -185,7 +234,7 @@ struct SectionLabel: View {
     let text: String
     init(_ text: String) { self.text = text }
     var body: some View {
-        Text(text).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+        Text(text).font(.app(.caption).weight(.medium)).foregroundStyle(.secondary)
     }
 }
 

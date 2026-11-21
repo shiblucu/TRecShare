@@ -11,6 +11,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         static let recording = "recordingSaved"
         static let upload = "uploadFinished"
         static let screenshot = "screenshotSaved"
+        static let update = "updateAvailable"
     }
 
     func setUp() {
@@ -23,9 +24,22 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             UNNotificationCategory(identifier: Category.recording, actions: [show, play], intentIdentifiers: []),
             UNNotificationCategory(identifier: Category.upload, actions: [open], intentIdentifiers: []),
             UNNotificationCategory(identifier: Category.screenshot, actions: [show, openImage], intentIdentifiers: []),
+            UNNotificationCategory(identifier: Category.update,
+                                   actions: [UNNotificationAction(identifier: "open", title: "Download", options: [.foreground])],
+                                   intentIdentifiers: []),
         ])
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            if !granted { Log.app.info("notifications not allowed") }
+        // Permission is asked for in the Welcome window (where it's explained), not at launch.
+        if AppSettings.shared.hasCompletedOnboarding { requestPermissionIfNeeded() }
+    }
+
+    /// Shows the system prompt the first time; does nothing once the user has answered.
+    func requestPermissionIfNeeded(then done: (@Sendable () -> Void)? = nil) {
+        center.getNotificationSettings { [center] settings in
+            guard settings.authorizationStatus == .notDetermined else { done?(); return }
+            center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                if !granted { Log.app.info("notifications not allowed") }
+                done?()
+            }
         }
     }
 
@@ -56,6 +70,15 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         content.sound = .default
         content.categoryIdentifier = Category.upload
         content.userInfo = ["link": link.absoluteString]
+        post(content)
+    }
+
+    func updateAvailable(version: String, page: URL) {
+        let content = UNMutableNotificationContent()
+        content.title = "TRecShare \(version) is available"
+        content.body = "Click to open the download page."
+        content.categoryIdentifier = Category.update
+        content.userInfo = ["link": page.absoluteString]
         post(content)
     }
 

@@ -31,13 +31,13 @@ struct ReviewView: View {
                     TextField("Title", text: $title)
                         .accessibilityLabel("Recording title")
                         .textFieldStyle(.plain)
-                        .font(.title2.weight(.semibold))
+                        .font(.app(.title2).weight(.semibold))
                         .onSubmit(rename)
-                        .help("Rename the recording (press Return)")
+                        .hoverLabel("Rename the recording (press Return)")
                     Spacer()
                     if let info {
                         Text("\(Format.duration(info.duration)) · \(info.resolutionText) · \(Format.bytes(fileURL.fileSize))")
-                            .font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                            .font(.app(.callout)).foregroundStyle(.secondary).monospacedDigit()
                     }
                 }
 
@@ -45,7 +45,7 @@ struct ReviewView: View {
 
                 HStack(spacing: 8) {
                     Button { player.beginTrim { range in trim(range) } } label: { Label("Trim", systemImage: "timeline.selection") }
-                        .help("Cut the start or end. Saves a new trimmed file; the original is kept.")
+                        .hoverLabel("Cut the start or end. Saves a new trimmed file; the original is kept.")
                     Menu {
                         ForEach(UploadQuality.copyChoices) { q in
                             Button(q.title) { makeCopy(q) }
@@ -61,10 +61,10 @@ struct ReviewView: View {
                 if let busy {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text(busy).font(.callout).foregroundStyle(.secondary)
+                        Text(busy).font(.app(.callout)).foregroundStyle(.secondary)
                     }
                 } else if let message {
-                    Text(message).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                    Text(message).font(.app(.callout)).foregroundStyle(.secondary).textSelection(.enabled)
                 }
             }
             .padding(18)
@@ -91,7 +91,7 @@ struct ReviewView: View {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         SectionLabel("Upload to")
-                        Picker("Upload to", selection: $uploadTo) {
+                        AppPicker("Upload to", selection: $uploadTo) {
                             ForEach(UploadDestination.allCases.filter { $0 != .none }) {
                                 Label($0.shortTitle, systemImage: $0.icon).tag($0)
                             }
@@ -102,30 +102,30 @@ struct ReviewView: View {
                     if uploadTo == .spaces {
                         VStack(alignment: .leading, spacing: 4) {
                             SectionLabel("Share link")
-                            Picker("Share link", selection: $settings.spacesLinkAccess) {
+                            AppPicker("Share link", selection: $settings.spacesLinkAccess) {
                                 ForEach(LinkAccess.allCases) { Text($0.title).tag($0) }
                             }
                             .labelsHidden()
                             .fixedSize()
-                            .help("Also changes the default in Settings → Uploads.")
+                            .hoverLabel("Also changes the default in Settings → Uploads.")
                         }
                     } else if uploadTo == .drive {
                         VStack(alignment: .leading, spacing: 4) {
                             SectionLabel("Share link")
-                            Picker("Share link", selection: $settings.driveAnyoneWithLink) {
+                            AppPicker("Share link", selection: $settings.driveAnyoneWithLink) {
                                 Text("Anyone with the link").tag(true)
                                 Text("Only people I share it with").tag(false)
                             }
                             .labelsHidden()
                             .fixedSize()
-                            .help("Also changes the default in Settings → Uploads.")
+                            .hoverLabel("Also changes the default in Settings → Uploads.")
                         }
                     }
                     Spacer(minLength: 0)
                 }
                 .controlSize(.small)
                 if let missing = settings.missingSetup(for: uploadTo) {
-                    Text(missing).font(.caption).foregroundStyle(.secondary)
+                    Text(missing).font(.app(.caption)).foregroundStyle(.secondary)
                 }
             }
             UploadStatusView(url: fileURL, destination: uploadsSetUp ? uploadTo : nil)
@@ -138,7 +138,7 @@ struct ReviewView: View {
                 .menuStyle(.borderlessButton)
                 .fixedSize()
                 .controlSize(.small)
-                .help("Uploads a new copy. The new link replaces the saved one; the earlier copy stays where it was uploaded.")
+                .hoverLabel("Uploads a new copy. The new link replaces the saved one; the earlier copy stays where it was uploaded.")
             }
         }
         .padding(12)

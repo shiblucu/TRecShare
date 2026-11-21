@@ -38,7 +38,8 @@ enum HTTP {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 60 * 60 * 6
-        config.waitsForConnectivity = true
+        // Fail fast when offline (withRetry tries again a few times) instead of silently waiting for hours.
+        config.waitsForConnectivity = false
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
         config.httpCookieStorage = nil

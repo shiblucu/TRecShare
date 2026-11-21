@@ -41,6 +41,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         RecordingLibrary.shared.refresh()
         Task { await model.refreshSources() }
+        Task { await Self.recoverInterruptedRecordings() }
+        UpdateChecker.shared.startAutomaticChecks()
 
         if !AppSettings.shared.hasCompletedOnboarding {
             WindowRouter.shared.showWelcome()
@@ -61,6 +63,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Saves recordings that were cut off by a crash or force-quit (see `RecordingRecovery`).
+    private static func recoverInterruptedRecordings() async {
+        let folders = [AppSettings.shared.recordingsFolder, AppSettings.defaultRecordingsFolder]
+        let recovered = await RecordingRecovery.recoverInterruptedRecordings(in: folders)
+        guard !recovered.isEmpty else { return }
+        RecordingLibrary.shared.refresh()
+        Notifier.shared.recordingSaved(recovered[0], title: recovered.count == 1
+            ? "Recovered an unfinished recording"
+            : "Recovered \(recovered.count) unfinished recordings")
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag { statusItem?.showPopover() }
         return true
@@ -72,20 +85,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Log.app.info("quit requested while recording: saving first")
             Task {
                 await model.stopForTermination()
-                NSApp.reply(toApplicationShouldTerminate: true)
+                // Saving may have started an automatic upload: ask before cutting it off.
+                NSApp.reply(toApplicationShouldTerminate: Self.confirmQuitDuringUpload())
             }
             return .terminateLater
         }
-        if UploadManager.shared.hasActiveUploads {
-            let alert = NSAlert()
-            alert.messageText = "An upload is still running"
-            alert.informativeText = "If you quit now the upload stops. You can upload it again later from the Library."
-            alert.addButton(withTitle: "Keep Uploading")
-            alert.addButton(withTitle: "Quit Anyway")
-            NSApp.activate(ignoringOtherApps: true)
-            if alert.runModal() == .alertFirstButtonReturn { return .terminateCancel }
-        }
-        return .terminateNow
+        return Self.confirmQuitDuringUpload() ? .terminateNow : .terminateCancel
+    }
+
+    /// True when it's fine to quit: no upload is running, or the user chose to stop it.
+    private static func confirmQuitDuringUpload() -> Bool {
+        guard UploadManager.shared.hasActiveUploads else { return true }
+        let alert = NSAlert()
+        alert.messageText = "An upload is still running"
+        alert.informativeText = "If you quit now the upload stops. Your recording is saved on this Mac, and you can upload it again later from the Library."
+        alert.addButton(withTitle: "Keep Uploading")
+        alert.addButton(withTitle: "Quit Anyway")
+        NSApp.activate(ignoringOtherApps: true)
+        return alert.runModal() != .alertFirstButtonReturn
     }
 
     func applicationWillTerminate(_ notification: Notification) {

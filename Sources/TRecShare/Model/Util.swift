@@ -13,6 +13,8 @@ enum Log {
 
 enum AppInfo {
     static var name: String { "TRecShare" }
+    static var developer: String { "Tawfiqur Rahman" }
+    static let repositoryURL = URL(string: "https://github.com/shiblucu/TRecShare")!
     /// HTTP User-Agent product token (no spaces allowed).
     static var userAgentName: String { "TRecShare" }
     static var version: String {
