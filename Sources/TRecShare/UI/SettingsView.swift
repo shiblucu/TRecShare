@@ -132,6 +132,26 @@ private struct RecordingSettings: View {
     }
 }
 
+/// A short list of official documentation links shown under an upload destination's settings.
+private struct HelpLinks: View {
+    let links: [(title: String, url: String)]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(links, id: \.url) { link in
+                if let url = URL(string: link.url) {
+                    Link(destination: url) {
+                        Label(link.title, systemImage: "arrow.up.right.square")
+                            .font(.caption)
+                    }
+                    .help(link.url)
+                }
+            }
+        }
+        .tint(Theme.accent)
+        .padding(.top, 2)
+    }
+}
+
 // MARK: - Uploads
 
 private struct UploadSettings: View {
@@ -210,6 +230,10 @@ private struct UploadSettings: View {
         } footer: {
             Text("Create a key in DigitalOcean → API → Spaces Keys. The secret is stored in your Keychain. Each upload gets an unguessable link.")
                 .font(.caption).foregroundStyle(.secondary)
+            HelpLinks(links: [
+                ("DigitalOcean Spaces documentation", "https://docs.digitalocean.com/products/spaces/"),
+                ("How to create Spaces access keys", "https://docs.digitalocean.com/products/spaces/how-to/manage-access/")
+            ])
         }
     }
 
@@ -240,8 +264,13 @@ private struct UploadSettings: View {
         } header: {
             Text("Google Drive")
         } footer: {
-            Text("In Google Cloud Console: enable the Google Drive API, then create an OAuth client of type \"Desktop app\" and paste its ID and secret here. TRecShare only gets access to the files it uploads (folder \"TRecShare\" in your Drive).")
+            Text("In Google Cloud Console: enable the Google Drive API, then create an OAuth client of type \"Desktop app\" and paste its ID and secret here. TRecShare only gets access to the files it uploads (folder \"TRecShare › Recordings\" in your Drive, created automatically).\n\nIf Google says \"access_denied\": add your account under Audience → Test users. To stay signed in, fill in Branding (app name, home page, privacy policy link), then press Publish app. When Google warns the app is unverified, choose Advanced → Go to TRecShare.")
                 .font(.caption).foregroundStyle(.secondary)
+            HelpLinks(links: [
+                ("Enable the Google Drive API", "https://console.cloud.google.com/apis/library/drive.googleapis.com"),
+                ("OAuth for desktop apps (Google docs)", "https://developers.google.com/identity/protocols/oauth2/native-app"),
+                ("Google Drive API overview", "https://developers.google.com/workspace/drive/api/guides/about-sdk")
+            ])
         }
     }
 
@@ -274,6 +303,16 @@ private struct UploadSettings: View {
                  ? "Uses your SSH key or ssh-agent (no passwords are stored). The folder must be served by your web server at the public URL."
                  : "Files are sent with HTTP PUT (e.g. nginx WebDAV). The token is stored in your Keychain.")
                 .font(.caption).foregroundStyle(.secondary)
+            if settings.serverMethod == .sftp {
+                HelpLinks(links: [
+                    ("Add an SSH key to a server (DigitalOcean guide)", "https://docs.digitalocean.com/products/droplets/how-to/add-ssh-keys/"),
+                    ("ssh-agent manual (OpenBSD)", "https://man.openbsd.org/ssh-agent")
+                ])
+            } else {
+                HelpLinks(links: [
+                    ("nginx WebDAV module (HTTP PUT uploads)", "https://nginx.org/en/docs/http/ngx_http_dav_module.html")
+                ])
+            }
         }
     }
 

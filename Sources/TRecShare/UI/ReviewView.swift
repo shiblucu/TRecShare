@@ -129,6 +129,17 @@ struct ReviewView: View {
                 }
             }
             UploadStatusView(url: fileURL, destination: uploadsSetUp ? uploadTo : nil)
+            if uploads.state(for: fileURL) == nil, uploads.record(for: fileURL) != nil {
+                Menu {
+                    ReuploadMenu(url: fileURL)
+                } label: {
+                    Label("Upload again to another cloud or size…", systemImage: "icloud.and.arrow.up")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .controlSize(.small)
+                .help("Uploads a new copy. The new link replaces the saved one; the earlier copy stays where it was uploaded.")
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)

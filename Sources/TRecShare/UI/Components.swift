@@ -48,6 +48,32 @@ extension ButtonStyle where Self == BrandButtonStyle {
     static var brandSecondary: BrandButtonStyle { BrandButtonStyle(kind: .secondary) }
 }
 
+/// "Upload again" choices: pick any set-up cloud destination and an upload size.
+/// The new upload replaces the saved link; the earlier copy stays where it was uploaded.
+struct ReuploadMenu: View {
+    let url: URL
+    @EnvironmentObject private var uploads: UploadManager
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        ForEach(UploadDestination.allCases.filter { $0 != .none }) { destination in
+            if settings.missingSetup(for: destination) == nil {
+                Menu {
+                    ForEach(UploadQuality.allCases) { quality in
+                        Button(quality.title) { uploads.upload(url, to: destination, quality: quality) }
+                    }
+                } label: {
+                    Label(destination.title, systemImage: destination.icon)
+                }
+            } else {
+                Button { WindowRouter.shared.showSettings(tab: .uploads) } label: {
+                    Label("\(destination.title) (set up in Settings)", systemImage: destination.icon)
+                }
+            }
+        }
+    }
+}
+
 /// Upload state for one recording: Upload button → progress → link (copy/open) or error (retry).
 struct UploadStatusView: View {
     let url: URL

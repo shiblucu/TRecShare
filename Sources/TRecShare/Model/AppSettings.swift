@@ -224,7 +224,7 @@ final class AppSettings: ObservableObject {
     // Google Drive
     @Published var driveClientID: String { didSet { d.set(driveClientID, forKey: "drive.clientID") } }
     @Published var driveAccount: String { didSet { d.set(driveAccount, forKey: "drive.account") } }
-    @Published var driveFolderID: String { didSet { d.set(driveFolderID, forKey: "drive.folderID") } }
+    @Published var driveFolderID: String { didSet { d.set(driveFolderID, forKey: "drive.recordingsFolderID") } }
     @Published var driveAnyoneWithLink: Bool { didSet { d.set(driveAnyoneWithLink, forKey: "drive.anyoneWithLink") } }
 
     // Own server
@@ -277,7 +277,7 @@ final class AppSettings: ObservableObject {
 
         driveClientID = d.string(forKey: "drive.clientID") ?? ""
         driveAccount = d.string(forKey: "drive.account") ?? ""
-        driveFolderID = d.string(forKey: "drive.folderID") ?? ""
+        driveFolderID = d.string(forKey: "drive.recordingsFolderID") ?? ""
         driveAnyoneWithLink = d.object(forKey: "drive.anyoneWithLink") as? Bool ?? true
 
         serverMethod = ServerMethod(rawValue: d.string(forKey: "server.method") ?? "") ?? .sftp

@@ -256,16 +256,28 @@ struct DriveClient: Sendable {
         return user?["emailAddress"] as? String ?? user?["displayName"] as? String ?? "Google account"
     }
 
-    /// Returns the ID of the app's "TRecShare" folder, creating it if needed.
+    /// Returns the ID of the "TRecShare" › "Recordings" folder where uploads go, creating whichever folders are missing.
+    /// Existing folders are reused (TRecShare can only see folders it created itself).
     func ensureFolder(knownID: String) async throws -> String {
         if !knownID.isEmpty, knownID.range(of: #"^[A-Za-z0-9_-]{10,200}$"#, options: .regularExpression) != nil,
            let file = try? await json("GET", "https://www.googleapis.com/drive/v3/files/\(knownID)?fields=id,trashed"),
            (file["trashed"] as? Bool) == false {
             return knownID
         }
+        let root = try await findOrCreateFolder(named: "TRecShare", in: "root")
+        return try await findOrCreateFolder(named: "Recordings", in: root)
+    }
+
+    private func findOrCreateFolder(named name: String, in parent: String) async throws -> String {
+        let query = "name = '\(name)' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '\(parent)' in parents"
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "&+=#")
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: allowed) ?? query
+        let found = try await json("GET", "https://www.googleapis.com/drive/v3/files?q=\(encoded)&fields=files(id)&pageSize=1&orderBy=createdTime")
+        if let id = (found["files"] as? [[String: Any]])?.first?["id"] as? String { return id }
         let created = try await json("POST", "https://www.googleapis.com/drive/v3/files?fields=id",
-                                     body: ["name": "TRecShare", "mimeType": "application/vnd.google-apps.folder"])
-        guard let id = created["id"] as? String else { throw UploadError("Could not create the TRecShare folder in Drive.") }
+                                     body: ["name": name, "mimeType": "application/vnd.google-apps.folder", "parents": [parent]])
+        guard let id = created["id"] as? String else { throw UploadError("Could not create the \(name) folder in Drive.") }
         return id
     }
 
