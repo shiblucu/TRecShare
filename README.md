@@ -325,18 +325,26 @@ Google requires every app to use an OAuth client. You create your own (free, abo
 
 1. Open the [Google Cloud Console](https://console.cloud.google.com/) and **create a project**.
 2. **APIs & Services → Library → Google Drive API → Enable.**
-3. **APIs & Services → OAuth consent screen**: choose **External**, fill in the app name and your email.
-   While the app is in **Testing**, add your own Google account under **Test users**.
-   Then, to avoid being signed out every 7 days, press **Publish app** (status *In production*). TRecShare only asks
-   for the narrow `drive.file` scope, which should not need Google's verification review. Check Google's current
-   rules if the console says otherwise.
+3. **Google Auth Platform** (older consoles: **APIs & Services → OAuth consent screen**): choose **External**.
+   - **Branding**: enter the app name (`TRecShare`), your support email, an **Application home page**
+     (for example this repository's URL) and an **Application privacy policy link** (for example the
+     [Privacy and security](#privacy-and-security) section of this README on GitHub). Leave the logo empty:
+     adding one means you must submit the app for Google's verification.
+   - **Audience → Test users**: add the Google account you will sign in with. Without this, sign-in fails with
+     *"Error 403: access_denied. TRecShare has not completed the Google verification process"*.
+   - **Audience → Publish app** (status *In production*), so you are not signed out every 7 days. TRecShare only
+     asks for the narrow `drive.file` scope, so you do not need to go through Google's verification review for
+     personal use. The publish button needs the app name, support email, home page and privacy policy link from Branding.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID → Application type: Desktop app.**
    Copy the **Client ID** and **Client secret**.
 5. In TRecShare: **Upload to → Google Drive**, paste the client ID and secret, then press **Sign in with Google**.
-   Your browser opens; allow access and return to the app. It shows "Signed in as <email>".
+   Your browser opens. Google warns that it has not verified the app (it is your own app, so that is expected):
+   click **Advanced → Go to TRecShare (unsafe)** and allow access, then return to the app. It shows "Signed in as <email>".
+   If you signed in while the app was still in *Testing*, **Sign Out** and sign in again after publishing to get a
+   long-lived sign-in.
 6. Optional: turn **Anyone with the link can watch** off if you want to share files from Drive yourself.
 
-Videos go into a **TRecShare** folder in your Drive. TRecShare can only see files it created itself.
+Videos go into **TRecShare › Recordings** in your Drive. TRecShare creates both folders if they don't exist and reuses them otherwise. TRecShare can only see files it created itself.
 Google Drive links open Google's own player (no share page).
 
 ### Your own server (VPS)
@@ -477,6 +485,8 @@ Set **Settings → Recording → Quality** to **Native**. When sharing, use **10
 | "Access denied" | The key needs write permission for that bucket. |
 | "The Google Drive API is turned off…" | Enable the Drive API in your Google Cloud project. |
 | "Your Google sign-in has expired" | Sign in again. Publish the consent screen to avoid weekly expiry. |
+| "Error 403: access_denied… has not completed the Google verification process" | Add your Google account under **Audience → Test users**, or publish the app (see [Google Drive](#google-drive)). |
+| "Valid app name, support email, homepage url, and privacy policy url are required" | Fill in **Branding** in the Google console before pressing **Publish app**. |
 | "The server didn't accept your SSH key" | Check the key path, or add the key to `ssh-agent`. |
 | "The server's SSH host key changed" | Check `~/.ssh/known_hosts`; this can mean the server was reinstalled, or something worse. |
 | "Couldn't reach host:port" | Check the host name, port and firewall. |

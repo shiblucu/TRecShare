@@ -181,6 +181,18 @@ private struct RecordingCard: View {
                 statusPill
                 Spacer()
                 actionButton
+                if !uploads.isUploading(item.url) {
+                    Menu {
+                        ReuploadMenu(url: item.url)
+                    } label: {
+                        Image(systemName: "icloud.and.arrow.up")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help(uploads.record(for: item.url) == nil ? "Upload to… (choose cloud and size)" : "Upload again… (choose cloud and size)")
+                    .accessibilityLabel(uploads.record(for: item.url) == nil ? "Upload to another cloud or size" : "Upload again with another cloud or size")
+                }
             }
         }
         .padding(10)
@@ -290,6 +302,9 @@ private struct RecordingCard: View {
         }
         if settings.uploadDestination != .none {
             Button(uploads.record(for: item.url) == nil ? "Upload & Copy Link" : "Upload Again") { uploads.upload(item.url) }
+        }
+        Menu(uploads.record(for: item.url) == nil ? "Upload to…" : "Upload Again to…") {
+            ReuploadMenu(url: item.url)
         }
         Divider()
         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([item.url]) }
