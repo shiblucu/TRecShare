@@ -86,9 +86,25 @@ private struct ControlBarView: View {
                 Divider().frame(height: 22).opacity(0.4)
 
                 iconButton(model.state == .paused ? "play.fill" : "pause.fill",
-                           help: model.state == .paused ? "Resume (⌥⇧P)" : "Pause (⌥⇧P)") { model.togglePause() }
+                           help: (model.state == .paused ? "Resume" : "Pause") + shortcut(HotKeys.togglePause)) { model.togglePause() }
                 iconButton("arrow.counterclockwise", help: "Restart: delete and record again") { confirm = .restart }
                 iconButton("trash", help: "Delete recording") { confirm = .delete }
+
+                if model.micInRecording || model.cameraInRecording {
+                    Divider().frame(height: 22).opacity(0.4)
+                }
+                if model.micInRecording {
+                    iconButton(model.micMuted ? "mic.slash.fill" : "mic.fill",
+                               help: model.micMuted ? "Unmute microphone" : "Mute microphone",
+                               tint: model.micMuted ? .red : nil) { model.toggleMicMute() }
+                        .accessibilityAddTraits(model.micMuted ? .isSelected : [])
+                }
+                if model.cameraInRecording {
+                    iconButton(model.cameraHidden ? "video.slash.fill" : "video.fill",
+                               help: model.cameraHidden ? "Show camera" : "Hide camera",
+                               tint: model.cameraHidden ? .red : nil) { model.toggleCameraHidden() }
+                        .accessibilityAddTraits(model.cameraHidden ? .isSelected : [])
+                }
 
                 Button { model.stopRecording() } label: {
                     HStack(spacing: 6) {
@@ -101,7 +117,7 @@ private struct ControlBarView: View {
                     .background(Capsule().fill(Theme.accent))
                 }
                 .buttonStyle(.plain)
-                .help("Finish recording (⌥⇧R)")
+                .help("Finish recording" + shortcut(HotKeys.toggleRecording))
                 .padding(.leading, 4)
             }
         }
@@ -117,10 +133,16 @@ private struct ControlBarView: View {
         }
     }
 
-    private func iconButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
+    /// " (⌥⇧P)" when global shortcuts are on, so the hint never names a shortcut that doesn't work.
+    private func shortcut(_ s: HotKeys.Shortcut) -> String {
+        model.settings.hotkeysEnabled ? " (\(s.display))" : ""
+    }
+
+    private func iconButton(_ symbol: String, help: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint ?? .primary)
                 .frame(width: 30, height: 30)
                 .contentShape(Circle())
         }
@@ -147,5 +169,22 @@ struct HoverCircleStyle: ButtonStyle {
         configuration.label
             .background(Circle().fill(Color.primary.opacity(configuration.isPressed ? 0.16 : hovering ? 0.08 : 0)))
             .onHover { hovering = $0 }
+    }
+}
+
+/// Confirmation for throwing away the running recording, used by the menu-bar panel and the right-click menu
+/// (the floating control bar asks inline). TRecShare's own windows are never captured, so the alert isn't recorded.
+@MainActor
+enum RecordingPrompts {
+    static func confirmDiscard(_ model: RecorderModel) {
+        let alert = NSAlert()
+        alert.messageText = "Delete this recording?"
+        alert.informativeText = "What has been recorded so far is thrown away. This can't be undone."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Keep Recording")
+        alert.buttons.first?.hasDestructiveAction = true
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn { model.discardRecording() }
     }
 }

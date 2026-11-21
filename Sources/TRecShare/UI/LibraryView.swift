@@ -1,20 +1,102 @@
 import AppKit
 import SwiftUI
 
+enum LibraryFilter: String, CaseIterable, Identifiable {
+    case all = "All recordings", shared = "Shared", local = "On this Mac only", failed = "Upload failed"
+    var id: String { rawValue }
+    var icon: String {
+        switch self {
+        case .all: return "rectangle.stack"
+        case .shared: return "link"
+        case .local: return "internaldrive"
+        case .failed: return "exclamationmark.triangle"
+        }
+    }
+}
+
 /// All recordings in the recordings folder, newest first, with upload status and quick actions.
 struct LibraryView: View {
     @EnvironmentObject private var library: RecordingLibrary
     @EnvironmentObject private var uploads: UploadManager
     @EnvironmentObject private var model: RecorderModel
+    @EnvironmentObject private var settings: AppSettings
     @State private var search = ""
+    @State private var filter: LibraryFilter = .all
     @State private var pendingDelete: RecordingItem?
+
+    private func matches(_ item: RecordingItem, _ f: LibraryFilter) -> Bool {
+        switch f {
+        case .all: return true
+        case .shared: return uploads.record(for: item.url) != nil
+        case .failed: if case .failed = uploads.state(for: item.url) { return true } else { return false }
+        case .local: return uploads.record(for: item.url) == nil && !matches(item, .failed)
+        }
+    }
 
     private var filtered: [RecordingItem] {
         let q = search.trimmed
-        return q.isEmpty ? library.items : library.items.filter { $0.title.localizedCaseInsensitiveContains(q) }
+        return library.items.filter { matches($0, filter) && (q.isEmpty || $0.title.localizedCaseInsensitiveContains(q)) }
     }
 
     var body: some View {
+        HStack(spacing: 0) {
+            sidebar
+            Divider()
+            content
+        }
+        .frame(minWidth: 720, minHeight: 420)
+        .onAppear { library.refresh() }
+        .confirmationDialog("Move “\(pendingDelete?.title ?? "")” to the Trash?", isPresented: Binding(
+            get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
+            Button("Move to Trash", role: .destructive) {
+                if let item = pendingDelete { try? library.trash(item.url) }
+                pendingDelete = nil
+            }
+        } message: {
+            Text("You can restore it from the Trash. Uploaded copies stay online.")
+        }
+    }
+
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(LibraryFilter.allCases) { f in
+                let count = library.items.filter { matches($0, f) }.count
+                let selected = filter == f
+                Button { filter = f } label: {
+                    HStack {
+                        Label(f.rawValue, systemImage: f.icon)
+                        Spacer()
+                        Text("\(count)")
+                            .foregroundStyle(f == .failed && count > 0 ? Color.orange : .secondary)
+                            .monospacedDigit()
+                    }
+                    .font(.callout.weight(selected ? .semibold : .regular))
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 34)
+                    .foregroundStyle(selected ? Theme.accent : .primary)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(selected ? Theme.accentSoft : .clear))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+            Spacer()
+            SectionLabel("Uploads to").padding(.horizontal, 10)
+            HStack {
+                Image(systemName: settings.uploadDestination.icon).foregroundStyle(.secondary)
+                Text(settings.uploadDestination.shortTitle).font(.callout)
+                Spacer()
+                Button("Change") { WindowRouter.shared.showSettings(tab: .uploads) }
+                    .buttonStyle(.link).font(.caption)
+            }
+            .padding(.horizontal, 10).padding(.bottom, 6)
+        }
+        .padding(12)
+        .frame(width: 210)
+        .background(Color.primary.opacity(0.03))
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             toolbar
             Divider()
@@ -35,31 +117,21 @@ struct LibraryView: View {
                 }
             }
         }
-        .frame(minWidth: 540, minHeight: 380)
-        .onAppear { library.refresh() }
-        .confirmationDialog("Move “\(pendingDelete?.title ?? "")” to the Trash?", isPresented: Binding(
-            get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
-            Button("Move to Trash", role: .destructive) {
-                if let item = pendingDelete { try? library.trash(item.url) }
-                pendingDelete = nil
-            }
-        } message: {
-            Text("You can restore it from the Trash. Uploaded copies stay online.")
-        }
     }
 
     private var toolbar: some View {
         HStack(spacing: 10) {
-            Text("Library").font(.title2.weight(.semibold))
-            Text("\(library.items.count) recording\(library.items.count == 1 ? "" : "s")").foregroundStyle(.secondary)
+            Text(filter.rawValue).font(.title2.weight(.semibold))
+            Text("\(filtered.count)").foregroundStyle(.secondary)
             Spacer()
-            TextField("Search", text: $search)
+            TextField("Search recordings", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 220)
             Button { NSWorkspace.shared.open(library.folder) } label: { Image(systemName: "folder") }
                 .help("Open the recordings folder in Finder")
             Button {
-                model.startRecording()
+                // Open the recorder panel to choose display, audio and camera first; recording starts from there.
+                NotificationCenter.default.post(name: .showRecorderPanel, object: nil)
             } label: {
                 Label("New Recording", systemImage: "record.circle")
             }
@@ -97,22 +169,41 @@ private struct RecordingCard: View {
     @State private var hovering = false
 
     var body: some View {
-        Button { WindowRouter.shared.showReview(item.url) } label: { card }
-            .buttonStyle(.plain)
-            .contextMenu { menu }
-            .help("Open \(item.title)")
-            .accessibilityLabel(accessibilityText)
-            .accessibilityHint("Opens the recording. More actions in the context menu.")
+        // The preview is a real button (reachable with Tab); the status row sits beside it, not inside it,
+        // so its action button is a separate control instead of a button nested in a button.
+        VStack(alignment: .leading, spacing: 8) {
+            Button { WindowRouter.shared.showReview(item.url) } label: { preview }
+                .buttonStyle(.plain)
+                .help("Open \(item.title)")
+                .accessibilityLabel(accessibilityText)
+                .accessibilityHint("Opens the recording. More actions in the context menu.")
+            HStack(spacing: 8) {
+                statusPill
+                Spacer()
+                actionButton
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(hovering ? 0.07 : 0.035)))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onHover { hovering = $0 }
+        .contextMenu { menu }
+        .task(id: item.url) {
+            thumbnail = await ThumbnailCache.shared.image(for: item.url)
+            duration = await MediaInfo.load(item.url)?.duration
+        }
     }
 
     private var accessibilityText: String {
         var parts = [item.title, item.date.formatted(date: .abbreviated, time: .shortened), Format.bytes(item.size)]
         if let duration { parts.insert("\(Format.duration(duration)) long", at: 1) }
-        if uploads.record(for: item.url) != nil { parts.append("shared") }
+        if case .failed = uploads.state(for: item.url) { parts.append("upload failed") }
+        else if uploads.isUploading(item.url) { parts.append("uploading") }
+        else if uploads.record(for: item.url) != nil { parts.append("shared") }
         return parts.joined(separator: ", ")
     }
 
-    private var card: some View {
+    private var preview: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottomTrailing) {
                 Rectangle().fill(Color.black.opacity(0.85))
@@ -147,32 +238,45 @@ private struct RecordingCard: View {
                 Text("·")
                 Text(Format.bytes(item.size))
                 Spacer()
-                statusBadge
             }
             .font(.caption)
             .foregroundStyle(.secondary)
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(hovering ? 0.07 : 0.035)))
-        .contentShape(RoundedRectangle(cornerRadius: 14))
-        .onHover { hovering = $0 }
-        .task(id: item.url) {
-            thumbnail = await ThumbnailCache.shared.image(for: item.url)
-            duration = await MediaInfo.load(item.url)?.duration
+        .contentShape(Rectangle())
+    }
+
+    private func pill(_ text: String, _ fg: Color) -> some View {
+        Text(text).font(.caption.weight(.semibold))
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(Capsule().fill(fg.opacity(0.14)))
+            .foregroundStyle(fg)
+    }
+
+    @ViewBuilder
+    private var statusPill: some View {
+        if let state = uploads.state(for: item.url) {
+            switch state {
+            case .preparing, .uploading: pill("Uploading", Theme.accent)
+            case .failed: pill("Upload failed", .orange)
+            }
+        } else if uploads.record(for: item.url) != nil {
+            pill("Shared", .green)
+        } else {
+            pill("On this Mac", .secondary)
         }
     }
 
     @ViewBuilder
-    private var statusBadge: some View {
+    private var actionButton: some View {
         if let state = uploads.state(for: item.url) {
             switch state {
-            case .preparing, .uploading:
-                Label("Uploading", systemImage: "arrow.up.circle").foregroundStyle(.blue)
-            case .failed:
-                Label("Failed", systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+            case .preparing, .uploading: Button("Cancel") { uploads.cancel(item.url) }
+            case .failed: Button("Retry") { uploads.upload(item.url) }
             }
-        } else if uploads.record(for: item.url) != nil {
-            Label("Shared", systemImage: "link").foregroundStyle(.green)
+        } else if let record = uploads.record(for: item.url) {
+            Button("Copy link") { Pasteboard.copy(record.link.absoluteString) }
+        } else if settings.uploadDestination != .none {
+            Button("Upload") { uploads.upload(item.url) }
         }
     }
 

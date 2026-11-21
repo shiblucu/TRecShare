@@ -94,6 +94,18 @@ final class ScreenRecorder: NSObject {
         }
     }
 
+    /// Turns microphone capture on or off. While capturing, this closes the current part and starts a new one
+    /// (the same path as pause → resume), so every part stays a valid file; the joined video is silent while muted.
+    func setMicrophoneCapture(_ on: Bool) async throws {
+        try await serialized {
+            guard let config = self.streamConfig, config.captureMicrophone != on else { return }
+            config.captureMicrophone = on
+            guard self.isCapturing else { return }   // paused: the next resume picks it up
+            await self.stopSegment()
+            try await self.startSegment()
+        }
+    }
+
     /// Stops capture and writes the finished MP4 to `outputURL`.
     /// If joining the parts fails, the parts are kept in the same folder so nothing recorded is lost.
     func finish(to outputURL: URL) async throws -> URL {

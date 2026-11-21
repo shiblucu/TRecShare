@@ -10,12 +10,54 @@ enum Theme {
     static let accentSoft = accent.opacity(0.12)
 }
 
+/// Brand button styles: a filled primary for the main action, a soft secondary for the rest.
+/// Both show hover, pressed and disabled states and keep a visible focus ring for keyboard users.
+struct BrandButtonStyle: ButtonStyle {
+    enum Kind { case primary, secondary }
+    var kind: Kind = .primary
+    var tint: Color = Theme.accent
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(kind == .primary ? Color.white : tint)
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .background(
+                shape.fill(kind == .primary
+                           ? AnyShapeStyle(LinearGradient(colors: [tint.opacity(hovering ? 1 : 0.94), tint.opacity(hovering ? 0.88 : 0.8)],
+                                                          startPoint: .top, endPoint: .bottom))
+                           : AnyShapeStyle(tint.opacity(hovering ? 0.18 : 0.10)))
+            )
+            .overlay(shape.strokeBorder(kind == .primary ? Color.white.opacity(0.18) : tint.opacity(0.35), lineWidth: 1))
+            .shadow(color: kind == .primary ? tint.opacity(pressed ? 0.15 : 0.35) : .clear, radius: pressed ? 2 : 6, y: pressed ? 1 : 3)
+            .scaleEffect(pressed ? 0.98 : 1)
+            .opacity(isEnabled ? 1 : 0.45)
+            .contentShape(shape)
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: pressed)
+            .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+}
+
+extension ButtonStyle where Self == BrandButtonStyle {
+    static var brand: BrandButtonStyle { BrandButtonStyle() }
+    static var brandSecondary: BrandButtonStyle { BrandButtonStyle(kind: .secondary) }
+}
+
 /// Upload state for one recording: Upload button → progress → link (copy/open) or error (retry).
 struct UploadStatusView: View {
     let url: URL
     var compact = false
+    /// Where to upload; nil means the default from Settings.
+    var destination: UploadDestination? = nil
     @EnvironmentObject private var uploads: UploadManager
     @EnvironmentObject private var settings: AppSettings
+
+    private var target: UploadDestination { destination ?? settings.uploadDestination }
 
     var body: some View {
         Group {
@@ -30,7 +72,8 @@ struct UploadStatusView: View {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                         Text(message).font(.caption).lineLimit(compact ? 2 : 4).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
-                        if settings.missingSetup(for: settings.uploadDestination) != nil {
+                        // Retry goes to the destination that failed, wherever the upload was started.
+                        if settings.missingSetup(for: uploads.destination(for: url) ?? target) != nil {
                             Button("Settings") { WindowRouter.shared.showSettings(tab: .uploads) }
                         } else {
                             Button("Retry") { uploads.upload(url) }
@@ -80,7 +123,7 @@ struct UploadStatusView: View {
     @ViewBuilder
     private var uploadButton: some View {
         HStack(spacing: 6) {
-            if settings.uploadDestination == .none {
+            if target == .none {
                 Button {
                     WindowRouter.shared.showSettings(tab: .uploads)
                 } label: {
@@ -92,17 +135,19 @@ struct UploadStatusView: View {
                 Menu {
                     Section("Upload size") {
                         ForEach(UploadQuality.allCases) { q in
-                            Button(q.title) { uploads.upload(url, quality: q) }
+                            Button(q.title) { uploads.upload(url, to: target, quality: q) }
                         }
                     }
                 } label: {
                     Label("Upload & copy link", systemImage: "icloud.and.arrow.up")
                 } primaryAction: {
-                    uploads.upload(url)
+                    uploads.upload(url, to: target)
                 }
                 .fixedSize()
-                .help("Uploads to \(settings.uploadDestination.shortTitle) at \(settings.uploadQuality.shortTitle). Use the arrow for other sizes.")
-                Text("to \(settings.uploadDestination.shortTitle)").font(.caption).foregroundStyle(.secondary)
+                .help("Uploads to \(target.shortTitle) at \(settings.uploadQuality.shortTitle). Use the arrow for other sizes.")
+                if destination == nil {
+                    Text("to \(target.shortTitle)").font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 0)
         }

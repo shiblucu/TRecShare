@@ -46,7 +46,14 @@ final class RecorderModel: ObservableObject {
     @Published private(set) var windows: [WindowChoice] = []
     @Published private(set) var microphones: [DeviceChoice] = []
     @Published private(set) var cameras: [DeviceChoice] = []
-    @Published var selectedDisplayID: CGDirectDisplayID?
+    @Published var selectedDisplayID: CGDirectDisplayID? {
+        didSet {
+            guard selectedDisplayID != oldValue, !state.isStarting, !state.isCapturing,
+                  let screen = selectedDisplayID.flatMap(Self.screen(for:)) else { return }
+            if oldValue != nil, NSScreen.screens.count > 1 { DisplayHighlight.flash(on: screen) }
+            CameraBubble.shared.move(to: screen)   // the bubble follows the chosen display
+        }
+    }
     @Published var selectedWindowID: CGWindowID?
 
     // Status
@@ -62,6 +69,13 @@ final class RecorderModel: ObservableObject {
     @Published private(set) var needsMicrophonePermission = false
     @Published private(set) var needsCameraPermission = false
     @Published var panelVisible = false { didSet { updateCameraBubble() } }
+    /// Microphone muted from the control bar during the current recording.
+    @Published private(set) var micMuted = false
+    /// Camera bubble hidden from the control bar during the current recording (it's a real window, so it leaves the video too).
+    @Published private(set) var cameraHidden = false
+    /// What the running recording actually captures (fixed at start), so the controls match the video.
+    @Published private(set) var micInRecording = false
+    @Published private(set) var cameraInRecording = false
 
     /// Called right before capture UI appears, so the menu-bar panel can close.
     var onWillCapture: (() -> Void)?
@@ -210,11 +224,19 @@ final class RecorderModel: ObservableObject {
     func updateCameraBubble() {
         let active = state.isStarting || state.isCapturing
         let wanted = settings.cameraEnabled && Permissions.status(for: .video) == .granted && (panelVisible || active)
+        let bubble = CameraBubble.shared
+        if wanted && cameraHidden && state.isCapturing {
+            bubble.setTemporarilyHidden(true)
+            return
+        }
+        if wanted, bubble.isTemporarilyHidden {
+            bubble.setTemporarilyHidden(false)   // back where it was, camera already running
+        }
         if wanted {
             let screen = targetScreen ?? selectedDisplayID.flatMap(Self.screen(for:))
             CameraBubble.shared.show(deviceID: settings.cameraID, size: settings.cameraSize, on: screen)
-        } else if CameraBubble.shared.isVisible {
-            CameraBubble.shared.hide()
+        } else if bubble.isVisible || bubble.isTemporarilyHidden {
+            bubble.hide()
         }
     }
 
@@ -240,6 +262,7 @@ final class RecorderModel: ObservableObject {
         startTask?.cancel()
         startTask = nil
         CountdownOverlay.hide()
+        DisplayHighlight.hide()
         if state == .selectingArea { AreaSelector.cancel() }
         if state.isStarting { state = .idle }
         targetScreen = nil
@@ -271,6 +294,30 @@ final class RecorderModel: ObservableObject {
                 stopRecording()
             }
         }
+    }
+
+    /// Mutes or unmutes the microphone mid-recording. A short part boundary is made, like pause → resume.
+    func toggleMicMute() {
+        guard state.isCapturing, micInRecording else { return }
+        let muted = !micMuted
+        micMuted = muted
+        Accessibility.announce(muted ? "Microphone muted" : "Microphone on")
+        Task {
+            do {
+                try await recorder.setMicrophoneCapture(!muted)
+            } catch {
+                errorMessage = "Could not switch the microphone: \(error.localizedDescription). The part recorded so far is being saved."
+                stopRecording()
+            }
+        }
+    }
+
+    /// Hides or shows the camera bubble while recording.
+    func toggleCameraHidden() {
+        guard state.isCapturing, cameraInRecording else { return }
+        cameraHidden.toggle()
+        updateCameraBubble()
+        Accessibility.announce(cameraHidden ? "Camera hidden" : "Camera shown")
     }
 
     func stopRecording() {
@@ -397,6 +444,7 @@ final class RecorderModel: ObservableObject {
 
         // Countdown
         if settings.countdownEnabled, let screen = targetScreen ?? NSScreen.main {
+            DisplayHighlight.flash(on: screen, duration: 1.6)   // ~2 s with the fade: which screen is about to record
             for n in stride(from: 3, through: 1, by: -1) {
                 state = .countdown(n)
                 CountdownOverlay.show(n, on: screen) { [weak self] in self?.cancelStart() }
@@ -446,6 +494,10 @@ final class RecorderModel: ObservableObject {
         accumulated = 0
         elapsed = 0
         segmentStartedAt = Date()
+        micMuted = false
+        cameraHidden = false
+        micInRecording = config.captureMicrophone
+        cameraInRecording = window == nil && CameraBubble.shared.isVisible
         state = .recording
         startTimer()
         activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleDisplaySleepDisabled],
@@ -613,8 +665,13 @@ final class RecorderModel: ObservableObject {
 
     private func afterRecording(_ url: URL) {
         RecordingLibrary.shared.refresh()
-        if settings.autoUpload, settings.canUpload {
-            UploadManager.shared.upload(url)
+        if settings.autoUpload, settings.uploadDestination != .none {
+            if let missing = settings.missingSetup(for: settings.uploadDestination) {
+                // The original is already saved on this Mac; say why nothing was uploaded instead of skipping silently.
+                errorMessage = "Saved on this Mac. Automatic upload was skipped: \(missing)"
+            } else {
+                UploadManager.shared.upload(url)
+            }
         }
         if settings.openReviewAfterRecording {
             WindowRouter.shared.showReview(url)
@@ -633,6 +690,10 @@ final class RecorderModel: ObservableObject {
 
     private func tearDownCaptureUI() {
         stopTimer()
+        micMuted = false
+        cameraHidden = false
+        micInRecording = false
+        cameraInRecording = false
         ControlBar.hide()
         AreaOutline.hide()
         CountdownOverlay.hide()

@@ -16,6 +16,7 @@ struct ReviewView: View {
     @State private var busy: String?
     @State private var message: String?
     @State private var confirmDelete = false
+    @State private var uploadTo: UploadDestination = .none
 
     private var fileURL: URL { currentURL ?? url }
 
@@ -40,7 +41,7 @@ struct ReviewView: View {
                     }
                 }
 
-                UploadStatusView(url: fileURL)
+                uploadCard
 
                 HStack(spacing: 8) {
                     Button { player.beginTrim { range in trim(range) } } label: { Label("Trim", systemImage: "timeline.selection") }
@@ -70,6 +71,10 @@ struct ReviewView: View {
         }
         .onAppear(perform: load)
         .onDisappear { player.player.pause() }
+        // Moved to the Trash from the Library or elsewhere: don't leave a window open on a missing file.
+        .onReceive(NotificationCenter.default.publisher(for: .recordingTrashed)) { note in
+            if (note.object as? URL) == fileURL { WindowRouter.shared.close("review") }
+        }
         .confirmationDialog("Move this recording to the Trash?", isPresented: $confirmDelete) {
             Button("Move to Trash", role: .destructive, action: delete)
         } message: {
@@ -77,7 +82,61 @@ struct ReviewView: View {
         }
     }
 
+    /// Destination and link options, then the upload button / progress / link (as in the design).
+    private var uploadCard: some View {
+        let notStarted = uploads.state(for: fileURL) == nil && uploads.record(for: fileURL) == nil
+        let uploadsSetUp = settings.uploadDestination != .none
+        return VStack(alignment: .leading, spacing: 10) {
+            if notStarted && uploadsSetUp {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        SectionLabel("Upload to")
+                        Picker("Upload to", selection: $uploadTo) {
+                            ForEach(UploadDestination.allCases.filter { $0 != .none }) {
+                                Label($0.shortTitle, systemImage: $0.icon).tag($0)
+                            }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                    }
+                    if uploadTo == .spaces {
+                        VStack(alignment: .leading, spacing: 4) {
+                            SectionLabel("Share link")
+                            Picker("Share link", selection: $settings.spacesLinkAccess) {
+                                ForEach(LinkAccess.allCases) { Text($0.title).tag($0) }
+                            }
+                            .labelsHidden()
+                            .fixedSize()
+                            .help("Also changes the default in Settings → Uploads.")
+                        }
+                    } else if uploadTo == .drive {
+                        VStack(alignment: .leading, spacing: 4) {
+                            SectionLabel("Share link")
+                            Picker("Share link", selection: $settings.driveAnyoneWithLink) {
+                                Text("Anyone with the link").tag(true)
+                                Text("Only people I share it with").tag(false)
+                            }
+                            .labelsHidden()
+                            .fixedSize()
+                            .help("Also changes the default in Settings → Uploads.")
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .controlSize(.small)
+                if let missing = settings.missingSetup(for: uploadTo) {
+                    Text(missing).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            UploadStatusView(url: fileURL, destination: uploadsSetUp ? uploadTo : nil)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.accentSoft))
+    }
+
     private func load() {
+        if uploadTo == .none { uploadTo = settings.uploadDestination }
         if currentURL == nil { currentURL = url }
         title = fileURL.deletingPathExtension().lastPathComponent
         player.load(fileURL)

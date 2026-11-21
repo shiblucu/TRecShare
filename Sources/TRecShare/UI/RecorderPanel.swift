@@ -33,11 +33,11 @@ struct RecorderPanel: View {
                                   systemImage: "camera.viewfinder")
                                 .frame(maxWidth: .infinity)
                         }
+                        .buttonStyle(.brandSecondary)
                         .controlSize(.large)
                         .help("Saves a PNG and copies it to the clipboard (\(HotKeys.screenshot.display))")
                     }
                     HStack {
-                        Toggle("3-second countdown", isOn: $settings.countdownEnabled).toggleStyle(.checkbox)
                         Spacer()
                         if settings.hotkeysEnabled {
                             Text("\(HotKeys.toggleRecording.display) record · \(HotKeys.screenshot.display) screenshot").foregroundStyle(.secondary)
@@ -181,7 +181,7 @@ struct RecorderPanel: View {
             deviceRow(icon: "mic", title: "Microphone",
                       isOn: Binding(get: { settings.microphoneEnabled }, set: { model.setMicrophoneEnabled($0) }),
                       devices: model.microphones, selection: $settings.microphoneID,
-                      emptyText: "No microphone found")
+                      emptyText: "No microphone found", showsLevel: true)
             HStack(spacing: 10) {
                 Image(systemName: "speaker.wave.2").frame(width: 18).foregroundStyle(.secondary).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
@@ -196,17 +196,22 @@ struct RecorderPanel: View {
     }
 
     private func deviceRow(icon: String, title: String, isOn: Binding<Bool>, devices: [DeviceChoice],
-                           selection: Binding<String?>, emptyText: String) -> some View {
+                           selection: Binding<String?>, emptyText: String, showsLevel: Bool = false) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon).frame(width: 18).foregroundStyle(.secondary).accessibilityHidden(true)
             if isOn.wrappedValue {
                 if devices.isEmpty {
                     Text(emptyText).font(.callout).foregroundStyle(.secondary)
                 } else {
-                    Picker(title, selection: selection) {
-                        ForEach(devices) { Text($0.name).lineLimit(1).tag(Optional($0.id)) }
+                    VStack(alignment: .leading, spacing: 5) {
+                        Picker(title, selection: selection) {
+                            ForEach(devices) { Text($0.name).lineLimit(1).tag(Optional($0.id)) }
+                        }
+                        .labelsHidden()
+                        if showsLevel && model.panelVisible && model.state == .idle {
+                            MicLevelMeter(deviceID: selection.wrappedValue)
+                        }
                     }
-                    .labelsHidden()
                 }
             } else {
                 Text("No \(title.lowercased())").font(.callout).foregroundStyle(.secondary)
@@ -275,12 +280,31 @@ struct RecorderPanel: View {
                     Label(model.state == .paused ? "Resume" : "Pause", systemImage: model.state == .paused ? "play.fill" : "pause.fill")
                         .frame(maxWidth: .infinity)
                 }
-                Button(role: .destructive) { model.discardRecording() } label: {
+                Button(role: .destructive) { RecordingPrompts.confirmDiscard(model) } label: {
                     Label("Delete", systemImage: "trash").frame(maxWidth: .infinity)
                 }
             }
             .controlSize(.large)
             .disabled(model.state == .finishing)
+            if model.micInRecording || model.cameraInRecording {
+                HStack(spacing: 8) {
+                    if model.micInRecording {
+                        Button { model.toggleMicMute() } label: {
+                            Label(model.micMuted ? "Unmute mic" : "Mute mic",
+                                  systemImage: model.micMuted ? "mic.slash.fill" : "mic.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    if model.cameraInRecording {
+                        Button { model.toggleCameraHidden() } label: {
+                            Label(model.cameraHidden ? "Show camera" : "Hide camera",
+                                  systemImage: model.cameraHidden ? "video.slash.fill" : "video.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .disabled(model.state == .finishing)
+            }
             bigButton("Finish recording", color: Theme.accent, symbol: "stop.fill") { model.stopRecording() }
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.state == .finishing)
@@ -291,14 +315,12 @@ struct RecorderPanel: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let symbol { Image(systemName: symbol).font(.system(size: 11, weight: .bold)) }
-                Text(title).font(.system(size: 14, weight: .semibold)).monospacedDigit()
+                Text(title).monospacedDigit()
             }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(RoundedRectangle(cornerRadius: 10).fill(color))
-            .contentShape(Rectangle())
+            .frame(minHeight: 4)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BrandButtonStyle(kind: .primary, tint: color))
+        .controlSize(.large)
     }
 
     // MARK: - Messages

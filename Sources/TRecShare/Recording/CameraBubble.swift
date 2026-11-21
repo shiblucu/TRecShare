@@ -14,6 +14,8 @@ final class CameraBubble: NSObject {
     private var savedOrigin: NSPoint?
 
     var isVisible: Bool { panel?.isVisible ?? false }
+    /// Off screen during a recording but with the camera still running, so showing it again is instant.
+    private(set) var isTemporarilyHidden = false
     var windowID: CGWindowID? { panel.map { CGWindowID($0.windowNumber) } }
 
     static func cameras() -> [AVCaptureDevice] {
@@ -50,6 +52,16 @@ final class CameraBubble: NSObject {
         if session == nil || device?.uniqueID != currentDeviceID { startSession(device: device) }
     }
 
+    /// Moves a visible bubble to the default corner of `screen` (no-op if it is already on that screen).
+    func move(to screen: NSScreen) {
+        guard let panel, panel.isVisible,
+              !screen.frame.contains(NSPoint(x: panel.frame.midX, y: panel.frame.midY)) else { return }
+        let frame = screen.visibleFrame
+        let origin = NSPoint(x: frame.minX + 32, y: frame.minY + 32)
+        savedOrigin = origin
+        panel.setFrameOrigin(origin)
+    }
+
     func setSize(_ size: CameraSize) {
         guard let panel, panel.isVisible else { return }
         var frame = panel.frame
@@ -61,7 +73,17 @@ final class CameraBubble: NSObject {
         (panel.contentView as? BubbleView)?.layoutPreview()
     }
 
+    /// Hides or re-shows the bubble mid-recording, in the same place, without stopping the camera
+    /// (restarting it would show a black bubble for a second or two).
+    func setTemporarilyHidden(_ hidden: Bool) {
+        guard let panel, hidden != isTemporarilyHidden else { return }
+        guard hidden || session != nil else { isTemporarilyHidden = false; return }
+        isTemporarilyHidden = hidden
+        if hidden { panel.orderOut(nil) } else { panel.orderFrontRegardless() }
+    }
+
     func hide() {
+        isTemporarilyHidden = false
         if let panel { savedOrigin = panel.frame.origin }
         panel?.orderOut(nil)
         let s = session
@@ -164,7 +186,10 @@ private final class BubbleView: NSView {
             menu.addItem(item)
         }
         menu.addItem(.separator())
-        let hide = NSMenuItem(title: "Turn Camera Off", action: #selector(turnOff), keyEquivalent: "")
+        // While recording, hiding is temporary and matches the control bar's Hide camera button.
+        let recording = RecorderModel.shared.cameraInRecording
+        let hide = NSMenuItem(title: recording ? "Hide Camera" : "Turn Camera Off",
+                              action: recording ? #selector(hideDuringRecording) : #selector(turnOff), keyEquivalent: "")
         hide.target = self
         menu.addItem(hide)
         return menu
@@ -180,6 +205,10 @@ private final class BubbleView: NSView {
         guard let raw = sender.representedObject as? String, let shape = CameraShape(rawValue: raw) else { return }
         AppSettings.shared.cameraShape = shape
         CameraBubble.shared.setSize(AppSettings.shared.cameraSize)
+    }
+
+    @objc private func hideDuringRecording() {
+        RecorderModel.shared.toggleCameraHidden()
     }
 
     @objc private func turnOff() {

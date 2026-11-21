@@ -47,10 +47,11 @@ Everything stays on your Mac unless you set up an upload. No account, no analyti
 - Menu-bar app. No Dock icon until you open a window.
 - Record a whole **screen**, a single **window**, or a dragged **area**, on any display.
 - Draggable **camera** in portrait (rounded corners) or circle shape. Included in screen and area recordings.
-- Microphone (pick the input) and system audio, mixed into one track.
+- Microphone (pick the input, with a live level meter) and system audio, mixed into one track.
 - Quality up to **native Retina / 4K**, 30 or 60 fps, hardware HEVC encoding.
 - 3-second countdown, cursor and click highlighting.
-- Floating **control bar**: timer, pause/resume, restart, delete, finish. It is never captured in the video.
+- Floating **control bar**: timer, pause/resume, restart, delete, finish, mute the mic, hide the camera.
+  It is never captured in the video.
 - **Screenshots** of a screen, window or area.
 - Global keyboard shortcuts.
 - Safe: saves on quit or logout, stops before the disk fills, saves what was captured if a display is
@@ -58,13 +59,15 @@ Everything stays on your Mac unless you set up an upload. No account, no analyti
 
 **After recording**
 - **Review window**: play, **trim** (lossless), rename, save a smaller copy, move to the Trash.
-- **Upload and copy link** automatically, with progress in the menu bar and a notification.
-- **Share page** with a player and a download button (Spaces and your own server).
+- **Upload and copy link** automatically, with progress in the menu bar and a notification. Pick the
+  destination and who can watch for each upload in the Review window.
+- **Share page** with a player, a download button and a copy-link button (Spaces and your own server).
 - Upload sizes: Original, 1440p, **1080p (default)** or 720p. Upload copies are H.264 + AAC with "fast start",
   so they play in every browser and start streaming at once. Your original is never changed.
 - **Voice levelling** (on by default): quiet voices are raised to a standard level in upload and smaller
   copies. The original recording keeps its own audio.
-- **Library window**: every recording with thumbnail, duration, size and link status. Search, copy link, re-upload.
+- **Library window**: every recording with thumbnail, duration, size and upload status. Filter by Shared,
+  On this Mac only or Upload failed; search; copy link, upload or retry in one click.
 
 ---
 
@@ -170,9 +173,10 @@ You can reopen the guide any time: **Settings → General → Show the welcome &
 
 1. Click the **video icon** in the menu bar. The TRecShare panel opens under it.
 2. Choose **Screen**, **Window** or **Area**. For Screen, pick the display (the one you clicked from is pre-selected).
-3. Turn the **camera** and **microphone** on or off. Choose **System audio** if you want sound from apps.
+3. Turn the **camera** and **microphone** on or off (the meter under the microphone shows it hears you).
+   Choose **System audio** if you want sound from apps.
 4. Press **Start recording** (or **⌥⇧R**). After the 3-second countdown, recording starts.
-5. Use the **floating control bar** to pause, restart, delete or finish.
+5. Use the **floating control bar** to pause, restart, delete, mute, hide the camera or finish.
 6. Press **Finish** (or **⌥⇧R** again). The **Review** window opens with your video.
 
 The video is saved in `~/Movies/TRecShare`. If uploads are set up, it uploads and the link is copied to your clipboard.
@@ -183,7 +187,8 @@ The video is saved in `~/Movies/TRecShare`. If uploads are set up, it uploads an
 
 ### The menu-bar icon
 - **Click** it to open the panel. It closes when you click elsewhere, press **Esc**, switch apps, or open a window.
-- **Right-click** it for a quick menu: start/finish, pause, take a screenshot, Library, Settings, Quit.
+- **Right-click** it for a quick menu: start/finish, pause, mute, hide the camera, delete, take a screenshot,
+  Library, Settings, Quit.
 - While recording it shows a **timer**; while uploading it shows the **upload percentage**.
 
 ### Recording modes
@@ -197,12 +202,19 @@ The video is saved in `~/Movies/TRecShare`. If uploads are set up, it uploads an
 A small floating bar near the bottom of the screen:
 - **Pause / resume** (⌥⇧P): paused time is cut from the video.
 - **Restart**: delete this take and start again with the same source (asks for confirmation).
-- **Delete** (⌥⇧C): throw the recording away (asks for confirmation).
+- **Delete**: throw the recording away (asks for confirmation). The **⌥⇧C** shortcut deletes at once, without asking.
+- **Mute microphone**: the video is silent until you unmute. Each switch starts a new part, like pause and
+  resume, so there can be a split-second gap.
+- **Hide camera**: takes the camera bubble out of the video until you show it again. The camera keeps running
+  while hidden (its light stays on), so it comes back instantly in the same place.
 - **Finish** (⌥⇧R): stop and save.
+
+The same controls are in the menu-bar panel and the right-click menu while you record.
 
 ### Camera
 Turn it on in the panel. **Drag** it where you want it. **Right-click** it to change its **shape**
 (portrait with rounded corners, or circle) and **size**. It is part of the recording only while you record.
+While recording, its right-click menu offers **Hide Camera** (the same as the control bar's button).
 
 ### Keyboard shortcuts (work in any app)
 | Shortcut | Action |
@@ -224,14 +236,19 @@ Opens after each recording (turn off in Settings). It lets you:
 - **Play** the video with the standard macOS controls.
 - **Trim**: drag the yellow handles, then confirm. A new trimmed file is saved; the original is kept. No quality is lost.
 - **Rename**: edit the title and press Return.
-- **Upload and copy link**, or pick another upload size from the arrow next to the button.
+- **Upload and copy link**: choose where to upload and who can watch (Spaces: permanent or 7-day link;
+  Google Drive: anyone with the link or only people you share it with), or pick another upload size from the
+  arrow next to the button. The "who can watch" choice also becomes your default in Settings.
 - **Save Smaller Copy**: 1440p, 1080p or 720p next to the original.
 - **Show in Finder** or **Move to Trash**.
 
 ### Library
-Menu-bar icon → **Library** (also **⌘L** while a TRecShare window is open). Shows every recording with a
-thumbnail, length, size and a **Shared** badge. Click one to open it. Right-click for: open, play in QuickTime,
-copy link, open link, upload / upload again, show in Finder, move to Trash.
+Menu-bar icon → **Library** (also **⌘L** while a TRecShare window is open). The sidebar filters recordings:
+**All**, **Shared**, **On this Mac only** and **Upload failed**, each with a count. Each card shows a thumbnail,
+length, size, a status (Shared, On this Mac, Uploading, Upload failed) and a one-click action (Copy link,
+Upload, Retry or Cancel). Retry always goes to the destination that failed. Click a card to open it.
+Right-click for: open, play in QuickTime, copy link, open link, upload / upload again, show in Finder,
+move to Trash. "Upload failed" is not remembered after you quit TRecShare.
 
 ---
 
@@ -516,12 +533,15 @@ place of `trecshare`.
 ## Privacy and security
 
 - No analytics, no tracking, no third-party SDKs. Network access only to the storage you configure.
+- The microphone level meter runs only while the menu-bar panel is open, so macOS shows its microphone
+  indicator then. It never records.
 - Keys, tokens and client secrets live in the macOS Keychain (this device only) and are never displayed again.
 - All uploads use HTTPS. Storage settings (endpoint, bucket, region, folder) are strictly validated before any
   request is signed.
 - Google sign-in uses OAuth with PKCE and a one-time listener on `127.0.0.1`; only the `drive.file` scope.
-- Share links use cryptographically random paths. Share pages escape all text, load no scripts and set a
-  restrictive Content-Security-Policy.
+- Share links use cryptographically random paths. Share pages escape all text, load nothing from third parties
+  and set a restrictive Content-Security-Policy. Their only script is the small built-in copy-link button,
+  allowed by its exact SHA-256 hash, so no other script can run.
 - SFTP runs `/usr/bin/sftp` directly (no shell) with validated input, key-based login only and host-key checking.
 - Recordings are saved readable only by your user account. The app runs with the hardened runtime and only the
   camera and microphone entitlements.
