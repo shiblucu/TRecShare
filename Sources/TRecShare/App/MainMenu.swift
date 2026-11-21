@@ -10,11 +10,12 @@ enum MainMenu {
         let appMenu = NSMenu()
         appMenu.addItem(ClosureMenuItem(title: "About TRecShare") {
             let credits = NSAttributedString(
-                string: "TRecShare is an independent project and is not affiliated with, endorsed by, or sponsored by Apple Inc. It is built with Apple's ScreenCaptureKit framework.",
+                string: "Developed by \(AppInfo.developer).\n\nTRecShare is an independent project and is not affiliated with, endorsed by, or sponsored by Apple Inc. It is built with Apple's ScreenCaptureKit framework.",
                 attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor])
             NSApp.activate(ignoringOtherApps: true)
             NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
         })
+        appMenu.addItem(ClosureMenuItem(title: "Check for Updates…") { Task { await UpdateChecker.shared.check(userInitiated: true) } })
         appMenu.addItem(.separator())
         appMenu.addItem(ClosureMenuItem(title: "Settings…", keyEquivalent: ",") { WindowRouter.shared.showSettings() })
         appMenu.addItem(.separator())
@@ -26,7 +27,10 @@ enum MainMenu {
         main.addItem(submenu(appMenu, title: "TRecShare"))
 
         let file = NSMenu(title: "File")
-        file.addItem(ClosureMenuItem(title: "New Recording", keyEquivalent: "n") { RecorderModel.shared.startRecording() })
+        // Opens the recorder panel so display, audio and camera can be chosen first (like the Library button).
+        file.addItem(ClosureMenuItem(title: "New Recording…", keyEquivalent: "n") {
+            NotificationCenter.default.post(name: .showRecorderPanel, object: nil)
+        })
         file.addItem(ClosureMenuItem(title: "Library", keyEquivalent: "l") { WindowRouter.shared.showLibrary() })
         file.addItem(.separator())
         file.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")

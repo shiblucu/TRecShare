@@ -364,6 +364,10 @@ struct DriveClient: Sendable {
         return resp.statusCode == 308 ? (Self.nextOffset(resp) ?? 0) : nil
     }
 
+    func deleteFile(_ fileID: String) async throws {
+        _ = try await json("DELETE", "https://www.googleapis.com/drive/v3/files/\(fileID)")
+    }
+
     func shareWithAnyone(fileID: String) async throws {
         _ = try await json("POST", "https://www.googleapis.com/drive/v3/files/\(fileID)/permissions?fields=id",
                            body: ["role": "reader", "type": "anyone"])
@@ -391,7 +395,15 @@ struct DriveUploader: Uploader {
         if folder != folderID { onFolderID(folder) }
         let name = FileNames.sanitize(item.title) + ".mp4"
         let (id, webLink) = try await client.uploadFile(item.file, name: name, folderID: folder) { progress($0 * 0.98) }
-        if anyoneWithLink { try await client.shareWithAnyone(fileID: id) }
+        if anyoneWithLink {
+            do {
+                try await HTTP.withRetry { try await client.shareWithAnyone(fileID: id) }
+            } catch {
+                // Without sharing the link wouldn't work for others. Remove the file so a retry doesn't leave a duplicate.
+                await Task { try? await client.deleteFile(id) }.value
+                throw error
+            }
+        }
         progress(1)
         let fallback = "https://drive.google.com/file/d/\(SigV4.encode(id))/view"
         guard let link = webLink.flatMap(URL.init(string:)).flatMap({ $0.scheme == "https" ? $0 : nil }) ?? URL(string: fallback) else {

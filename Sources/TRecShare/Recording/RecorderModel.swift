@@ -46,13 +46,22 @@ final class RecorderModel: ObservableObject {
     @Published private(set) var windows: [WindowChoice] = []
     @Published private(set) var microphones: [DeviceChoice] = []
     @Published private(set) var cameras: [DeviceChoice] = []
-    @Published var selectedDisplayID: CGDirectDisplayID? {
+    @Published private(set) var selectedDisplayID: CGDirectDisplayID? {
         didSet {
             guard selectedDisplayID != oldValue, !state.isStarting, !state.isCapturing,
                   let screen = selectedDisplayID.flatMap(Self.screen(for:)) else { return }
-            if oldValue != nil, NSScreen.screens.count > 1 { DisplayHighlight.flash(on: screen) }
             CameraBubble.shared.move(to: screen)   // the bubble follows the chosen display
         }
+    }
+    /// Once the user picks a display, opening the panel no longer switches to the display under the cursor.
+    private var displayChosenByUser = false
+
+    /// The user picked a display in the panel: select it and outline it briefly so it's clear which one.
+    func selectDisplay(_ id: CGDirectDisplayID) {
+        displayChosenByUser = true
+        guard id != selectedDisplayID else { return }
+        selectedDisplayID = id
+        if NSScreen.screens.count > 1, !isBusy, let screen = Self.screen(for: id) { DisplayHighlight.flash(on: screen) }
     }
     @Published var selectedWindowID: CGWindowID?
 
@@ -136,7 +145,7 @@ final class RecorderModel: ObservableObject {
             if selectedDisplayID == nil || !displays.contains(where: { $0.id == selectedDisplayID }) {
                 selectedDisplayID = displays.first(where: { $0.isMain })?.id ?? displays.first?.id
             }
-            if followCursor, !isBusy, let id = Self.displayUnderCursor(), displays.contains(where: { $0.id == id }) {
+            if followCursor, !displayChosenByUser, !isBusy, let id = Self.displayUnderCursor(), displays.contains(where: { $0.id == id }) {
                 selectedDisplayID = id
             }
             if let wid = selectedWindowID, !windows.contains(where: { $0.id == wid }) { selectedWindowID = nil }

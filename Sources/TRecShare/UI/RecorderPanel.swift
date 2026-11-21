@@ -35,7 +35,7 @@ struct RecorderPanel: View {
                         }
                         .buttonStyle(.brandSecondary)
                         .controlSize(.large)
-                        .help("Saves a PNG and copies it to the clipboard (\(HotKeys.screenshot.display))")
+                        .hoverLabel("Saves a PNG and copies it to the clipboard (\(HotKeys.screenshot.display))")
                     }
                     HStack {
                         Spacer()
@@ -43,7 +43,7 @@ struct RecorderPanel: View {
                             Text("\(HotKeys.toggleRecording.display) record · \(HotKeys.screenshot.display) screenshot").foregroundStyle(.secondary)
                         }
                     }
-                    .font(.caption)
+                    .font(.app(.caption))
                     .foregroundStyle(.secondary)
                     .disabled(model.isBusy)
                 }
@@ -54,7 +54,7 @@ struct RecorderPanel: View {
             if let message = model.errorMessage { errorBox(message) }
             if let last = model.lastRecording, !model.state.isCapturing { lastRecordingRow(last) }
         }
-        .frame(width: 360)
+        .frame(width: (360 * settings.textSize.scale).rounded())
         .task { await model.refreshSources(followCursor: true) }
     }
 
@@ -67,7 +67,7 @@ struct RecorderPanel: View {
                 .frame(width: 26, height: 26)
                 .overlay(Image(systemName: "video.fill").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white))
                 .accessibilityHidden(true)
-            Text("TRecShare").font(.headline)
+            Text("TRecShare").font(.app(.headline))
             Spacer()
             headerButton("rectangle.stack", "Library") { WindowRouter.shared.showLibrary() }
             headerButton("gearshape", "Settings") { WindowRouter.shared.showSettings() }
@@ -81,7 +81,7 @@ struct RecorderPanel: View {
     private func headerButton(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) { Image(systemName: symbol).frame(width: 22, height: 22) }
             .buttonStyle(.borderless)
-            .help(label)
+            .hoverLabel(label)
             .accessibilityLabel(label)
     }
 
@@ -94,7 +94,7 @@ struct RecorderPanel: View {
                 Button { settings.captureMode = mode } label: {
                     VStack(spacing: 3) {
                         Image(systemName: mode.icon).font(.system(size: 15))
-                        Text(mode.title).font(.caption.weight(selected ? .semibold : .regular))
+                        Text(mode.title).font(.app(.caption).weight(selected ? .semibold : .regular))
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(RoundedRectangle(cornerRadius: 7).fill(selected ? Color(nsColor: .controlBackgroundColor) : .clear)
@@ -119,7 +119,7 @@ struct RecorderPanel: View {
                                 (model.displays.count > 1 ? "Screen to record" : "Display"))
                 if model.displays.isEmpty {
                     Text(model.needsScreenPermission ? "Waiting for Screen Recording permission…" : "Looking for displays…")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.app(.callout)).foregroundStyle(.secondary)
                 } else {
                     VStack(spacing: 5) {
                         ForEach(model.displays) { displayRow($0) }
@@ -134,18 +134,18 @@ struct RecorderPanel: View {
                     Button { Task { await model.refreshSources() } } label: { Image(systemName: "arrow.clockwise") }
                         .buttonStyle(.borderless)
                         .controlSize(.small)
-                        .help("Refresh the window list")
+                        .hoverLabel("Refresh the window list")
                 }
                 if model.windows.isEmpty {
                     Text("No windows found. Open the app you want to record, then refresh.")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.app(.callout)).foregroundStyle(.secondary)
                 } else {
-                    Picker("Window", selection: $model.selectedWindowID) {
+                    AppPicker("Window", selection: $model.selectedWindowID) {
                         ForEach(model.windows) { Text($0.label).lineLimit(1).tag(Optional($0.id)) }
                     }
                     .labelsHidden()
                     Text("The camera isn't included in window recordings.")
-                        .font(.caption2).foregroundStyle(.secondary)
+                        .font(.app(.caption2)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -153,11 +153,11 @@ struct RecorderPanel: View {
 
     private func displayRow(_ d: DisplayChoice) -> some View {
         let selected = model.selectedDisplayID == d.id
-        return Button { model.selectedDisplayID = d.id } label: {
+        return Button { model.selectDisplay(d.id) } label: {
             HStack(spacing: 8) {
                 Image(systemName: d.isMain ? "laptopcomputer" : "display")
                 Text(d.name).lineLimit(1)
-                if d.isMain { Text("Main").font(.caption2).foregroundStyle(.secondary) }
+                if d.isMain { Text("Main").font(.app(.caption2)).foregroundStyle(.secondary) }
                 Spacer()
                 if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent) }
             }
@@ -185,8 +185,8 @@ struct RecorderPanel: View {
             HStack(spacing: 10) {
                 Image(systemName: "speaker.wave.2").frame(width: 18).foregroundStyle(.secondary).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("System audio").font(.callout)
-                    Text("Sound from apps and the browser").font(.caption).foregroundStyle(.secondary)
+                    Text("System audio").font(.app(.callout))
+                    Text("Sound from apps and the browser").font(.app(.caption)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Toggle("System audio", isOn: $settings.systemAudioEnabled).labelsHidden().toggleStyle(.switch)
@@ -201,10 +201,10 @@ struct RecorderPanel: View {
             Image(systemName: icon).frame(width: 18).foregroundStyle(.secondary).accessibilityHidden(true)
             if isOn.wrappedValue {
                 if devices.isEmpty {
-                    Text(emptyText).font(.callout).foregroundStyle(.secondary)
+                    Text(emptyText).font(.app(.callout)).foregroundStyle(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 5) {
-                        Picker(title, selection: selection) {
+                        AppPicker(title, selection: selection) {
                             ForEach(devices) { Text($0.name).lineLimit(1).tag(Optional($0.id)) }
                         }
                         .labelsHidden()
@@ -214,7 +214,7 @@ struct RecorderPanel: View {
                     }
                 }
             } else {
-                Text("No \(title.lowercased())").font(.callout).foregroundStyle(.secondary)
+                Text("No \(title.lowercased())").font(.app(.callout)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 6)
             Toggle(title, isOn: isOn).labelsHidden().toggleStyle(.switch)
@@ -227,19 +227,19 @@ struct RecorderPanel: View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 SectionLabel("Quality")
-                Picker("Quality", selection: $settings.quality) {
+                AppPicker("Quality", selection: $settings.quality) {
                     ForEach(RecordingQuality.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .labelsHidden()
-                .help(settings.quality.sizeHint)
+                .hoverLabel(settings.quality.sizeHint)
             }
             VStack(alignment: .leading, spacing: 4) {
                 SectionLabel("After recording")
-                Picker("Upload to", selection: $settings.uploadDestination) {
+                AppPicker("Upload to", selection: $settings.uploadDestination) {
                     ForEach(UploadDestination.allCases) { Label($0.shortTitle, systemImage: $0.icon).tag($0) }
                 }
                 .labelsHidden()
-                .help("Where finished recordings are uploaded. Set the details in Settings → Uploads.")
+                .hoverLabel("Where finished recordings are uploaded. Set the details in Settings → Uploads.")
             }
         }
         .controlSize(.small)
@@ -271,9 +271,9 @@ struct RecorderPanel: View {
             HStack {
                 Circle().fill(model.state == .paused ? Color.orange : Theme.accent).frame(width: 10, height: 10)
                 Text(model.state == .paused ? "Paused" : model.state == .finishing ? "Saving…" : "Recording")
-                    .font(.headline)
+                    .font(.app(.headline))
                 Spacer()
-                Text(model.elapsedText).font(.system(.title3, design: .rounded).weight(.semibold)).monospacedDigit()
+                Text(model.elapsedText).font(.appSize(15, weight: .semibold, design: .rounded)).monospacedDigit()
             }
             HStack(spacing: 8) {
                 Button { model.togglePause() } label: {
@@ -327,7 +327,7 @@ struct RecorderPanel: View {
 
     private func errorBox(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(message).font(.callout).fixedSize(horizontal: false, vertical: true)
+            Text(message).font(.app(.callout)).fixedSize(horizontal: false, vertical: true)
             HStack {
                 if model.needsScreenPermission {
                     Button("Screen Recording settings") { Permissions.openScreenRecordingSettings() }
@@ -355,7 +355,7 @@ struct RecorderPanel: View {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).accessibilityHidden(true)
                 Text(url.deletingPathExtension().lastPathComponent)
-                    .font(.caption)
+                    .font(.app(.caption))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer()

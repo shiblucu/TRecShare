@@ -9,7 +9,7 @@ enum ControlBar {
 
     static func show(model: RecorderModel, on screen: NSScreen) {
         hide()
-        let host = NSHostingView(rootView: ControlBarView().environmentObject(model))
+        let host = NSHostingView(rootView: ControlBarView().appAppearance().environmentObject(model))
         host.layoutSubtreeIfNeeded()
         let size = host.fittingSize
         let visible = screen.visibleFrame
@@ -63,7 +63,7 @@ private struct ControlBarView: View {
         HStack(spacing: 4) {
             if let confirm {
                 Text(confirm == .delete ? "Delete this recording?" : "Delete and start over?")
-                    .font(.callout.weight(.medium)).padding(.horizontal, 8)
+                    .font(.app(.callout).weight(.medium)).padding(.horizontal, 8)
                 pill(confirm == .delete ? "Delete" : "Restart", role: .destructive) {
                     if confirm == .delete { model.discardRecording() } else { model.restartRecording() }
                 }
@@ -75,7 +75,7 @@ private struct ControlBarView: View {
                         .frame(width: 9, height: 9)
                         .opacity(model.state == .recording && blink ? 0.35 : 1)
                     Text(model.elapsedText)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .font(.appSize(14, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .frame(minWidth: 48, alignment: .leading)
                 }
@@ -109,7 +109,7 @@ private struct ControlBarView: View {
                 Button { model.stopRecording() } label: {
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 2).fill(.white).frame(width: 10, height: 10)
-                        Text("Finish").font(.system(size: 13, weight: .semibold))
+                        Text("Finish").font(.appSize(13, weight: .semibold))
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
@@ -117,7 +117,7 @@ private struct ControlBarView: View {
                     .background(Capsule().fill(Theme.accent))
                 }
                 .buttonStyle(.plain)
-                .help("Finish recording" + shortcut(HotKeys.toggleRecording))
+                .hoverLabel("Finish recording" + shortcut(HotKeys.toggleRecording))
                 .padding(.leading, 4)
             }
         }
@@ -141,19 +141,19 @@ private struct ControlBarView: View {
     private func iconButton(_ symbol: String, help: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.appSize(13, weight: .semibold))
                 .foregroundStyle(tint ?? .primary)
                 .frame(width: 30, height: 30)
                 .contentShape(Circle())
         }
         .buttonStyle(HoverCircleStyle())
-        .help(help)
+        .hoverLabel(help)
         .accessibilityLabel(help)
     }
 
     private func pill(_ title: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
         Button(role: role, action: action) {
-            Text(title).font(.system(size: 13, weight: .semibold))
+            Text(title).font(.appSize(13, weight: .semibold))
                 .foregroundStyle(role == .destructive ? .white : .primary)
                 .padding(.horizontal, 12)
                 .frame(height: 30)

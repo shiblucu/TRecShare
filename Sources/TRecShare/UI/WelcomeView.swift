@@ -17,13 +17,13 @@ struct WelcomeView: View {
                 RoundedRectangle(cornerRadius: 12).fill(Theme.accent).frame(width: 52, height: 52)
                     .overlay(Image(systemName: "video.fill").font(.system(size: 22, weight: .semibold)).foregroundStyle(.white))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Welcome to TRecShare").font(.title.weight(.bold))
+                    Text("Welcome to TRecShare").font(.app(.title).weight(.bold))
                     Text("Record your screen, camera and voice. Share a link in seconds.").foregroundStyle(.secondary)
                 }
             }
 
             Text("TRecShare needs a few permissions. Nothing leaves your Mac unless you set up uploads.")
-                .font(.callout)
+                .font(.app(.callout))
 
             VStack(spacing: 10) {
                 row("Screen Recording", "Required to record your screen.", "rectangle.dashed.badge.record",
@@ -41,13 +41,17 @@ struct WelcomeView: View {
                 }
                 row("Notifications", "To tell you when a recording is saved or a link is ready.", "bell.badge.fill",
                     granted: notifications == .authorized || notifications == .provisional, denied: notifications == .denied) {
-                    Permissions.openNotificationSettings()
+                    if notifications == .notDetermined {
+                        Notifier.shared.requestPermissionIfNeeded { Task { @MainActor in refresh() } }
+                    } else {
+                        Permissions.openNotificationSettings()
+                    }
                 }
             }
 
             if !screen {
                 Text("After allowing Screen Recording, macOS may ask you to quit and reopen TRecShare.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.app(.caption)).foregroundStyle(.secondary)
             }
 
             GroupBox {
@@ -56,7 +60,7 @@ struct WelcomeView: View {
                     Label("Use the floating bar to pause, restart or finish.", systemImage: "2.circle")
                     Label("Set up Google Drive, Spaces or your server in Settings → Uploads to get a share link automatically.", systemImage: "3.circle")
                 }
-                .font(.callout)
+                .font(.app(.callout))
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -64,15 +68,17 @@ struct WelcomeView: View {
             HStack {
                 Button("Set Up Uploads…") { WindowRouter.shared.showSettings(tab: .uploads) }
                 Spacer()
-                Button("Done") {
+                Button("Get Started") {
                     settings.hasCompletedOnboarding = true
                     WindowRouter.shared.close("welcome")
                 }
+                .buttonStyle(.brand)
+                .frame(width: 160)
                 .keyboardShortcut(.defaultAction)
             }
         }
         .padding(28)
-        .frame(width: 560)
+        .frame(width: (560 * settings.textSize.scale).rounded())
         .onAppear(perform: refresh)
         .onReceive(timer) { _ in refresh() }
     }
@@ -92,8 +98,8 @@ struct WelcomeView: View {
         HStack(spacing: 12) {
             Image(systemName: icon).font(.system(size: 16)).frame(width: 28).foregroundStyle(Theme.accent)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.headline)
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+                Text(title).font(.app(.headline))
+                Text(detail).font(.app(.caption)).foregroundStyle(.secondary)
             }
             Spacer()
             if granted {

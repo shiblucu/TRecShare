@@ -41,7 +41,10 @@ enum SegmentMerger {
     private static func concatenate(_ segments: [URL], to dest: URL) async throws {
         let composition = AVMutableComposition()
         var videoTrack: AVMutableCompositionTrack?
-        var audioTracks: [AVMutableCompositionTrack] = []
+        // Audio tracks are matched by format, not position: a muted part has fewer tracks (no microphone),
+        // so "track 0" can be the mic in one part and system audio in the next. Matching by format keeps
+        // every composition track uniform, which passthrough export needs. All tracks are mixed afterwards.
+        var audioTracks: [(track: AVMutableCompositionTrack, format: AudioFormatKey)] = []
         var cursor = CMTime.zero
 
         for url in segments {
@@ -57,13 +60,20 @@ enum SegmentMerger {
                 let range = try await source.load(.timeRange)
                 try videoTrack?.insertTimeRange(range, of: source, at: cursor)
             }
-            for (i, source) in try await asset.loadTracks(withMediaType: .audio).enumerated() {
-                while audioTracks.count <= i {
-                    guard let t = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else { break }
-                    audioTracks.append(t)
+            var usedThisPart = Set<Int>()
+            for source in try await asset.loadTracks(withMediaType: .audio) {
+                let format = AudioFormatKey(try await source.load(.formatDescriptions).first)
+                let index: Int
+                if let match = audioTracks.indices.first(where: { audioTracks[$0].format == format && !usedThisPart.contains($0) }) {
+                    index = match
+                } else {
+                    guard let t = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
+                    audioTracks.append((t, format))
+                    index = audioTracks.count - 1
                 }
+                usedThisPart.insert(index)
                 let range = try await source.load(.timeRange)
-                try audioTracks[i].insertTimeRange(range, of: source, at: cursor)
+                try audioTracks[index].track.insertTimeRange(range, of: source, at: cursor)
             }
             cursor = cursor + duration
         }
@@ -77,5 +87,19 @@ enum SegmentMerger {
         } catch {
             throw MergeError.exportFailed(error.localizedDescription)
         }
+    }
+}
+
+/// What has to match for two audio tracks to share one composition track.
+struct AudioFormatKey: Equatable {
+    let formatID: AudioFormatID
+    let sampleRate: Double
+    let channels: UInt32
+
+    init(_ description: CMFormatDescription?) {
+        let asbd = description.flatMap { CMAudioFormatDescriptionGetStreamBasicDescription($0)?.pointee }
+        formatID = asbd?.mFormatID ?? 0
+        sampleRate = asbd?.mSampleRate ?? 0
+        channels = asbd?.mChannelsPerFrame ?? 0
     }
 }

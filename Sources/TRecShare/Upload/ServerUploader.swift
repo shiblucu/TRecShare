@@ -179,16 +179,22 @@ enum SFTP {
         process.standardOutput = FileHandle.nullDevice
         process.standardInput = FileHandle.nullDevice
 
+        // Read stderr while sftp runs: a full pipe would otherwise block it forever.
+        let errorOutput = Task.detached { errPipe.fileHandleForReading.readDataToEndOfFile() }
         let status: Int32 = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { c in
                 process.terminationHandler = { c.resume(returning: $0.terminationStatus) }
-                do { try process.run() } catch { c.resume(throwing: error) }
+                do { try process.run() } catch {
+                    try? errPipe.fileHandleForWriting.close()   // lets the stderr reader finish
+                    c.resume(throwing: error)
+                }
             }
         } onCancel: {
-            process.terminate()
+            if process.isRunning { process.terminate() }   // terminate() on a never-started process raises
         }
+        let errData = await errorOutput.value
         if status != 0 {
-            let err = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmed ?? ""
+            let err = String(data: errData, encoding: .utf8)?.trimmed ?? ""
             let lower = err.lowercased()
             if lower.contains("permission denied (publickey") {
                 throw UploadError("The server didn't accept your SSH key. Add the key in Settings or to ssh-agent.")

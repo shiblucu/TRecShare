@@ -172,8 +172,10 @@ struct S3Client: Sendable {
             }
             progress(1)
         } catch {
+            // Abort so unfinished parts don't stay in the bucket (and get billed). A new, unstructured task
+            // runs even when this one was cancelled, which is the common case (the user pressed Cancel).
             let req = request("DELETE", key: key, query: [("uploadId", uploadID)], payloadHash: SigV4.emptyPayloadHash)
-            _ = try? await HTTP.send(req)
+            await Task { _ = try? await HTTP.send(req) }.value
             throw error
         }
     }

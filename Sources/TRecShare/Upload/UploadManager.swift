@@ -196,7 +196,14 @@ final class UploadManager: ObservableObject {
         guard let data = try? Data(contentsOf: storeURL) else { return }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        records = (try? decoder.decode([String: UploadResult].self, from: data)) ?? [:]
+        let all = (try? decoder.decode([String: UploadResult].self, from: data)) ?? [:]
+        // Forget links for recordings that were deleted outside the app. Files on a disconnected drive
+        // (their folder is missing too) are kept, so their links come back when the drive does.
+        let fm = FileManager.default
+        records = all.filter { path, _ in
+            fm.fileExists(atPath: path) || !fm.fileExists(atPath: (path as NSString).deletingLastPathComponent)
+        }
+        if records.count != all.count { save() }
     }
 
     private func save() {

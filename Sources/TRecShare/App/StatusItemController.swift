@@ -160,6 +160,7 @@ final class StatusItemController: NSObject {
 
     private func makePanel() -> DropDownPanel {
         let root = RecorderPanel()
+            .appAppearance()
             .tint(Theme.accent)
             .environmentObject(model)
             .environmentObject(AppSettings.shared)
@@ -242,6 +243,7 @@ final class StatusItemController: NSObject {
         add("Library…") { WindowRouter.shared.showLibrary() }
         add("Open Recordings Folder") { NSWorkspace.shared.open(RecordingLibrary.shared.folder) }
         add("Settings…") { WindowRouter.shared.showSettings() }
+        add("Check for Updates…") { Task { await UpdateChecker.shared.check(userInitiated: true) } }
         menu.addItem(.separator())
         add("Quit TRecShare") { NSApp.terminate(nil) }
         item.menu = menu

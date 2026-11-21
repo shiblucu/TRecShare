@@ -56,10 +56,24 @@ final class CameraBubble: NSObject {
     func move(to screen: NSScreen) {
         guard let panel, panel.isVisible,
               !screen.frame.contains(NSPoint(x: panel.frame.midX, y: panel.frame.midY)) else { return }
+        // Remember where the bubble was on the display it leaves, and go back to that spot when it returns.
+        if let from = NSScreen.screens.first(where: { $0.frame.contains(NSPoint(x: panel.frame.midX, y: panel.frame.midY)) }) {
+            originByScreen[Self.key(for: from)] = panel.frame.origin
+        }
         let frame = screen.visibleFrame
-        let origin = NSPoint(x: frame.minX + 32, y: frame.minY + 32)
+        var origin = originByScreen[Self.key(for: screen)] ?? NSPoint(x: frame.minX + 32, y: frame.minY + 32)
+        if !frame.contains(NSRect(origin: origin, size: panel.frame.size)) {
+            origin = NSPoint(x: frame.minX + 32, y: frame.minY + 32)
+        }
         savedOrigin = origin
         panel.setFrameOrigin(origin)
+    }
+
+    private var originByScreen: [String: NSPoint] = [:]
+
+    private static func key(for screen: NSScreen) -> String {
+        let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+        return id?.stringValue ?? screen.localizedName
     }
 
     func setSize(_ size: CameraSize) {

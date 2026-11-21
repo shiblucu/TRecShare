@@ -70,7 +70,7 @@ struct LibraryView: View {
                             .foregroundStyle(f == .failed && count > 0 ? Color.orange : .secondary)
                             .monospacedDigit()
                     }
-                    .font(.callout.weight(selected ? .semibold : .regular))
+                    .font(.app(.callout).weight(selected ? .semibold : .regular))
                     .padding(.horizontal, 10)
                     .frame(minHeight: 34)
                     .foregroundStyle(selected ? Theme.accent : .primary)
@@ -84,10 +84,10 @@ struct LibraryView: View {
             SectionLabel("Uploads to").padding(.horizontal, 10)
             HStack {
                 Image(systemName: settings.uploadDestination.icon).foregroundStyle(.secondary)
-                Text(settings.uploadDestination.shortTitle).font(.callout)
+                Text(settings.uploadDestination.shortTitle).font(.app(.callout))
                 Spacer()
                 Button("Change") { WindowRouter.shared.showSettings(tab: .uploads) }
-                    .buttonStyle(.link).font(.caption)
+                    .buttonStyle(.link).font(.app(.caption))
             }
             .padding(.horizontal, 10).padding(.bottom, 6)
         }
@@ -121,14 +121,14 @@ struct LibraryView: View {
 
     private var toolbar: some View {
         HStack(spacing: 10) {
-            Text(filter.rawValue).font(.title2.weight(.semibold))
+            Text(filter.rawValue).font(.app(.title2).weight(.semibold))
             Text("\(filtered.count)").foregroundStyle(.secondary)
             Spacer()
             TextField("Search recordings", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 220)
             Button { NSWorkspace.shared.open(library.folder) } label: { Image(systemName: "folder") }
-                .help("Open the recordings folder in Finder")
+                .hoverLabel("Open the recordings folder in Finder")
             Button {
                 // Open the recorder panel to choose display, audio and camera first; recording starts from there.
                 NotificationCenter.default.post(name: .showRecorderPanel, object: nil)
@@ -144,17 +144,29 @@ struct LibraryView: View {
     }
 
     private var empty: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             Spacer()
-            Image(systemName: "video.badge.plus").font(.system(size: 44)).foregroundStyle(.secondary)
-            Text("No recordings yet").font(.title3.weight(.semibold))
-            Text("Press \(HotKeys.toggleRecording.display) or click the menu-bar icon to record your screen.")
+            ZStack {
+                Circle().fill(Theme.accentSoft).frame(width: 96, height: 96)
+                Image(systemName: "video.badge.plus").font(.system(size: 40, weight: .medium)).foregroundStyle(Theme.accent)
+            }
+            .accessibilityHidden(true)
+            Text("No recordings yet").font(.app(.title2).weight(.semibold))
+            Text("Record your screen, camera and voice, then share a link.\nPress \(HotKeys.toggleRecording.display) or click the menu-bar icon.")
+                .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-            Button("Start Recording") { model.startRecording() }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.accent)
+            Button {
+                // Same as the toolbar: choose display, audio and camera first.
+                NotificationCenter.default.post(name: .showRecorderPanel, object: nil)
+            } label: {
+                Label("New Recording", systemImage: "record.circle")
+            }
+            .buttonStyle(.brand)
+            .frame(width: 220)
+            .disabled(model.isBusy)
             Spacer()
         }
+        .padding(24)
         .frame(maxWidth: .infinity)
     }
 }
@@ -174,7 +186,7 @@ private struct RecordingCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Button { WindowRouter.shared.showReview(item.url) } label: { preview }
                 .buttonStyle(.plain)
-                .help("Open \(item.title)")
+                .hoverLabel("Open \(item.title)")
                 .accessibilityLabel(accessibilityText)
                 .accessibilityHint("Opens the recording. More actions in the context menu.")
             HStack(spacing: 8) {
@@ -190,7 +202,7 @@ private struct RecordingCard: View {
                     .menuStyle(.borderlessButton)
                     .menuIndicator(.hidden)
                     .fixedSize()
-                    .help(uploads.record(for: item.url) == nil ? "Upload to… (choose cloud and size)" : "Upload again… (choose cloud and size)")
+                    .hoverLabel(uploads.record(for: item.url) == nil ? "Upload to… (choose cloud and size)" : "Upload again… (choose cloud and size)")
                     .accessibilityLabel(uploads.record(for: item.url) == nil ? "Upload to another cloud or size" : "Upload again with another cloud or size")
                 }
             }
@@ -230,7 +242,7 @@ private struct RecordingCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 if let duration {
                     Text(Format.duration(duration))
-                        .font(.caption2.weight(.semibold)).monospacedDigit()
+                        .font(.app(.caption2).weight(.semibold)).monospacedDigit()
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(Capsule().fill(.black.opacity(0.7)))
                         .foregroundStyle(.white)
@@ -244,21 +256,21 @@ private struct RecordingCard: View {
                 }
             }
 
-            Text(item.title).font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+            Text(item.title).font(.app(.callout).weight(.semibold)).lineLimit(1).truncationMode(.middle)
             HStack(spacing: 6) {
                 Text(item.date.formatted(date: .abbreviated, time: .shortened))
                 Text("·")
                 Text(Format.bytes(item.size))
                 Spacer()
             }
-            .font(.caption)
+            .font(.app(.caption))
             .foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())
     }
 
     private func pill(_ text: String, _ fg: Color) -> some View {
-        Text(text).font(.caption.weight(.semibold))
+        Text(text).font(.app(.caption).weight(.semibold))
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(Capsule().fill(fg.opacity(0.14)))
             .foregroundStyle(fg)
