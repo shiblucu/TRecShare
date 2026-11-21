@@ -18,12 +18,25 @@ struct UploadResult: Codable, Equatable, Sendable {
     var remoteID: String?
     var uploadedAt: Date
     var expiresAt: Date?
+    /// Which bucket / account / server received it, so a later delete can't hit a different one if Settings changed.
+    /// nil for uploads made before this was recorded.
+    var account: String?
 }
 
 protocol Uploader: Sendable {
     func upload(_ item: UploadItem, progress: @escaping @Sendable (Double) -> Void) async throws -> UploadResult
     /// Checks the settings with a tiny request. Returns a short success message.
     func testConnection() async throws -> String
+    /// Removes what `upload` created. A copy that is already gone counts as deleted.
+    func deleteUpload(_ result: UploadResult) async throws
+}
+
+extension UploadError {
+    /// Refuses to delete when Settings now point somewhere else than where the copy was uploaded.
+    static func checkAccount(saved: String?, current: String, what: String) throws {
+        guard let saved, !saved.isEmpty, saved != current else { return }
+        throw UploadError("This copy was uploaded to \(what) “\(saved)”, but Settings now use “\(current)”. Switch Settings back to delete it.")
+    }
 }
 
 struct UploadError: LocalizedError {

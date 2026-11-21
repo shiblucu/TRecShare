@@ -7,6 +7,7 @@ final class UploadManager: ObservableObject {
     static let shared = UploadManager()
 
     enum JobState: Equatable {
+        case queued                // waiting for its turn (several recordings were sent at once)
         case preparing(Double)     // making the upload copy
         case uploading(Double)     // < 0 means "progress unknown"
         case failed(String)
@@ -34,6 +35,7 @@ final class UploadManager: ObservableObject {
     var activeProgress: Double? {
         let values = jobs.values.compactMap { state -> Double? in
             switch state {
+            case .queued: return 0
             case .preparing(let p): return p * 0.3
             case .uploading(let p): return p < 0 ? 0.5 : 0.3 + p * 0.7
             case .failed: return nil
@@ -46,7 +48,7 @@ final class UploadManager: ObservableObject {
 
     func isUploading(_ url: URL) -> Bool {
         switch jobs[url.path] {
-        case .preparing, .uploading: return true
+        case .queued, .preparing, .uploading: return true
         default: return false
         }
     }
@@ -62,22 +64,76 @@ final class UploadManager: ObservableObject {
     func upload(_ url: URL, to destination: UploadDestination? = nil, quality: UploadQuality? = nil) {
         let key = url.path
         guard tasks[key] == nil else { return }
+        if case .queued = jobs[key] { return }
         let settings = AppSettings.shared
-        let dest = destination ?? jobDestinations[key] ?? settings.uploadDestination
+        begin(url, to: destination ?? jobDestinations[key] ?? settings.uploadDestination, quality: quality ?? settings.uploadQuality)
+    }
+
+    // MARK: - Several recordings at once
+
+    private struct QueuedUpload {
+        let url: URL
+        let destination: UploadDestination
+        let quality: UploadQuality
+    }
+
+    private var queue: [QueuedUpload] = []
+    /// Uploads started from a multi-selection: no clipboard / browser / per-file notification, one summary at the end.
+    private var batchKeys: Set<String> = []
+    private var batchTotal = 0, batchDone = 0, batchFailed = 0
+    /// At most this many uploads prepare and send at once (re-encoding is heavy).
+    private let maxParallelUploads = 2
+
+    /// Uploads several recordings to one destination at one size, a couple at a time.
+    /// Recordings that are already uploading or queued are skipped.
+    func uploadMany(_ urls: [URL], to destination: UploadDestination, quality: UploadQuality) {
+        if tasks.isEmpty, queue.isEmpty { batchTotal = 0; batchDone = 0; batchFailed = 0 }
+        for url in urls {
+            let key = url.path
+            if tasks[key] != nil { continue }
+            if case .queued = jobs[key] { continue }
+            jobDestinations[key] = destination
+            jobs[key] = .queued
+            batchKeys.insert(key)
+            batchTotal += 1
+            queue.append(QueuedUpload(url: url, destination: destination, quality: quality))
+        }
+        startQueued()
+    }
+
+    private func startQueued() {
+        while tasks.count < maxParallelUploads, !queue.isEmpty {
+            let next = queue.removeFirst()
+            guard case .queued = jobs[next.url.path] else { continue }   // cancelled while waiting
+            begin(next.url, to: next.destination, quality: next.quality)
+        }
+    }
+
+    /// Counts one finished batch upload (`success` nil = cancelled) and sends the summary after the last one.
+    private func finishBatchItem(_ key: String, success: Bool?) {
+        guard batchKeys.remove(key) != nil else { return }
+        switch success {
+        case true?: batchDone += 1
+        case false?: batchFailed += 1
+        case nil: batchTotal -= 1
+        }
+        if batchKeys.isEmpty, batchDone + batchFailed > 0 {
+            Notifier.shared.uploadsFinished(done: batchDone, failed: batchFailed)
+            batchTotal = 0; batchDone = 0; batchFailed = 0
+        }
+    }
+
+    private func begin(_ url: URL, to dest: UploadDestination, quality: UploadQuality) {
+        let key = url.path
         jobDestinations[key] = dest
-        let quality = quality ?? settings.uploadQuality
 
         let uploader: Uploader
         do {
-            if let missing = settings.missingSetup(for: dest) { throw UploadError(missing) }
-            switch dest {
-            case .none: throw UploadError(settings.missingSetup(for: .none)!)
-            case .spaces: uploader = try SpacesUploader.fromSettings()
-            case .drive: uploader = try DriveUploader.fromSettings()
-            case .server: uploader = try ServerUploader.fromSettings()
-            }
+            uploader = try makeUploader(for: dest)
         } catch {
             jobs[key] = .failed(error.localizedDescription)
+            finishBatchItem(key, success: false)
+            startQueued()
             return
         }
 
@@ -88,8 +144,60 @@ final class UploadManager: ObservableObject {
         }
     }
 
+    private func makeUploader(for destination: UploadDestination) throws -> Uploader {
+        let settings = AppSettings.shared
+        if let missing = settings.missingSetup(for: destination) { throw UploadError(missing) }
+        switch destination {
+        case .none: throw UploadError(settings.missingSetup(for: .none)!)
+        case .spaces: return try SpacesUploader.fromSettings()
+        case .drive: return try DriveUploader.fromSettings()
+        case .server: return try ServerUploader.fromSettings()
+        }
+    }
+
+    // MARK: - Delete the online copy
+
+    /// Recordings whose online copy is being removed right now (keyed by file path).
+    @Published private(set) var deleting: Set<String> = []
+
+    func isDeletingOnline(_ url: URL) -> Bool { deleting.contains(url.path) }
+
+    /// True while an uploaded copy exists, even if its private link has expired (the file is still in storage).
+    func hasOnlineCopy(_ url: URL) -> Bool { records[url.path] != nil }
+
+    /// Where the saved upload of this recording lives.
+    func onlineDestination(for url: URL) -> UploadDestination? {
+        records[url.path].flatMap { UploadDestination(rawValue: $0.destination) }
+    }
+
+    /// Deletes the uploaded copy (and its share page) from the cloud storage. The recording on this Mac is untouched.
+    func deleteOnlineCopy(of url: URL) async throws {
+        let key = url.path
+        guard let record = records[key] else { return }
+        guard !isUploading(url) else { throw UploadError("Wait for the upload to finish first, or cancel it.") }
+        guard !deleting.contains(key) else { return }
+        guard let destination = UploadDestination(rawValue: record.destination) else {
+            throw UploadError("This upload's destination isn't known, so it can't be deleted from here.")
+        }
+        deleting.insert(key)
+        defer { deleting.remove(key) }
+        let uploader = try makeUploader(for: destination)
+        try await uploader.deleteUpload(record)
+        records[key] = nil
+        save()
+        Log.upload.info("deleted the online copy")
+    }
+
     func cancel(_ url: URL) {
-        tasks[url.path]?.cancel()
+        let key = url.path
+        if case .queued = jobs[key] {      // still waiting: just take it out of the line
+            queue.removeAll { $0.url.path == key }
+            jobs[key] = nil
+            jobDestinations[key] = nil
+            finishBatchItem(key, success: nil)
+            return
+        }
+        tasks[key]?.cancel()
     }
 
     func dismissError(_ url: URL) {
@@ -108,6 +216,7 @@ final class UploadManager: ObservableObject {
         defer {
             try? FileManager.default.removeItem(at: work)
             tasks[key] = nil
+            startQueued()   // the next waiting upload takes this one's place
         }
         do {
             try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
@@ -157,23 +266,34 @@ final class UploadManager: ObservableObject {
             save()
             jobs[key] = nil
             jobDestinations[key] = nil
-            Pasteboard.copy(result.link.absoluteString)
-            Notifier.shared.uploadFinished(link: result.link, title: item.title)
-            if AppSettings.shared.openLinkAfterUpload { NSWorkspace.shared.open(result.link) }
+            if batchKeys.contains(key) {
+                finishBatchItem(key, success: true)
+            } else {
+                Pasteboard.copy(result.link.absoluteString)
+                Notifier.shared.uploadFinished(link: result.link, title: item.title)
+                if AppSettings.shared.openLinkAfterUpload { NSWorkspace.shared.open(result.link) }
+            }
             Log.upload.info("upload finished")
         } catch is CancellationError {
             jobs[key] = nil
             jobDestinations[key] = nil
+            finishBatchItem(key, success: nil)
         } catch Transcoder.TranscodeError.cancelled {
             jobs[key] = nil
             jobDestinations[key] = nil
+            finishBatchItem(key, success: nil)
         } catch let error as URLError where error.code == .cancelled {
             jobs[key] = nil
             jobDestinations[key] = nil
+            finishBatchItem(key, success: nil)
         } catch {
             Log.upload.error("upload failed: \(error.localizedDescription)")
             jobs[key] = .failed(error.localizedDescription)
-            Notifier.shared.uploadFailed(title: url.deletingPathExtension().lastPathComponent, message: error.localizedDescription)
+            if batchKeys.contains(key) {
+                finishBatchItem(key, success: false)
+            } else {
+                Notifier.shared.uploadFailed(title: url.deletingPathExtension().lastPathComponent, message: error.localizedDescription)
+            }
         }
     }
 

@@ -271,3 +271,34 @@ struct UpdateCheckTests {
         #expect(UpdateChecker.release(from: URL(string: "https://github.com/shiblucu/TRecShare/releases/tag/latest-build")) == nil)
     }
 }
+
+@Suite("Deleting online copies")
+struct DeleteOnlineTests {
+    @Test func findsTheUploadFolderFromTheVideoKey() throws {
+        #expect(try S3Validation.uploadFolder(forKey: "recordings/2026-11/demo-Ab3dE5/demo.mp4") == "recordings/2026-11/demo-Ab3dE5")
+        #expect(try S3Validation.uploadFolder(forKey: "demo-Ab3dE5/demo.mp4") == "demo-Ab3dE5")
+    }
+
+    @Test func refusesKeysThatCouldReachOtherFiles() {
+        for bad in [nil, "", "demo.mp4", "/demo.mp4", "../secret/demo.mp4", "a/../b/demo.mp4", "a//demo.mp4",
+                    "a/./demo.mp4", "a/b?x=1/demo.mp4", "a/b\\c/demo.mp4"] as [String?] {
+            #expect(throws: (any Error).self) { try S3Validation.uploadFolder(forKey: bad) }
+        }
+    }
+
+    @Test func refusesToDeleteFromADifferentAccount() throws {
+        try UploadError.checkAccount(saved: nil, current: "bucket@nyc3", what: "bucket")            // older upload: allowed
+        try UploadError.checkAccount(saved: "bucket@nyc3", current: "bucket@nyc3", what: "bucket")  // same place
+        #expect(throws: (any Error).self) {
+            try UploadError.checkAccount(saved: "old-bucket@nyc3", current: "new-bucket@nyc3", what: "bucket")
+        }
+    }
+
+    @Test func oldHistoryFilesStillLoad() throws {
+        let json = #"{"destination":"spaces","link":"https://x.example/a","uploadedAt":"2026-11-21T10:00:00Z","remoteID":"a/b.mp4"}"#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let result = try decoder.decode(UploadResult.self, from: Data(json.utf8))
+        #expect(result.account == nil)
+    }
+}

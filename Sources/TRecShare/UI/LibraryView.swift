@@ -22,7 +22,10 @@ struct LibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @State private var search = ""
     @State private var filter: LibraryFilter = .all
-    @State private var pendingDelete: RecordingItem?
+    /// Selection mode: click cards to tick them, then act on all ticked recordings at once.
+    @State private var selecting = false
+    @State private var selection = Set<URL>()
+    @State private var working = false
 
     private func matches(_ item: RecordingItem, _ f: LibraryFilter) -> Bool {
         switch f {
@@ -46,15 +49,11 @@ struct LibraryView: View {
         }
         .frame(minWidth: 720, minHeight: 420)
         .onAppear { library.refresh() }
-        .confirmationDialog("Move “\(pendingDelete?.title ?? "")” to the Trash?", isPresented: Binding(
-            get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
-            Button("Move to Trash", role: .destructive) {
-                if let item = pendingDelete { try? library.trash(item.url) }
-                pendingDelete = nil
-            }
-        } message: {
-            Text("You can restore it from the Trash. Uploaded copies stay online.")
+        .onChange(of: library.items) { _, items in
+            let existing = Set(items.map(\.url))
+            selection = selection.intersection(existing)
         }
+        .onExitCommand { if selecting { endSelecting() } }
     }
 
     private var sidebar: some View {
@@ -110,13 +109,103 @@ struct LibraryView: View {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 240, maximum: 340), spacing: 18)], spacing: 18) {
                         ForEach(filtered) { item in
-                            RecordingCard(item: item, onDelete: { pendingDelete = item })
+                            RecordingCard(item: item,
+                                          selecting: selecting,
+                                          selected: selection.contains(item.url),
+                                          onToggle: { toggle(item.url) },
+                                          onDelete: {
+                                              Task { if await OnlineCopyPrompts.confirmTrash(item.url) { try? library.trash(item.url) } }
+                                          })
                         }
                     }
                     .padding(20)
                 }
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if selecting { selectionBar }
+        }
+    }
+
+    // MARK: - Selecting several recordings
+
+    private func toggle(_ url: URL) {
+        if selection.contains(url) { selection.remove(url) } else { selection.insert(url) }
+    }
+
+    private func endSelecting() {
+        selecting = false
+        selection = []
+    }
+
+    private var selectedItems: [RecordingItem] { library.items.filter { selection.contains($0.url) } }
+    private var selectedWithOnlineCopy: Int { selectedItems.filter { uploads.hasOnlineCopy($0.url) }.count }
+
+    private var selectionBar: some View {
+        let count = selection.count
+        let allSelected = !filtered.isEmpty && filtered.allSatisfy { selection.contains($0.url) }
+        return VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 12) {
+                Text(count == 0 ? "Select recordings" : "\(count) selected")
+                    .font(.app(.callout).weight(.semibold))
+                    .monospacedDigit()
+                Button(allSelected ? "Select None" : "Select All") {
+                    if allSelected { selection.subtract(filtered.map(\.url)) } else { selection.formUnion(filtered.map(\.url)) }
+                }
+                .buttonStyle(.link)
+                .hoverLabel(allSelected ? "Untick the recordings shown here" : "Tick every recording shown here")
+                Spacer()
+                if working { ProgressView().controlSize(.small) }
+                Menu {
+                    UploadChoiceMenu { destination, quality in
+                        let urls = OnlineCopyPrompts.confirmUploadMany(selectedItems.map(\.url), to: destination, quality: quality)
+                        guard !urls.isEmpty else { return }
+                        uploads.uploadMany(urls, to: destination, quality: quality)
+                        if urls.count > 1 { endSelecting() }
+                    }
+                } label: {
+                    Label("Upload", systemImage: "icloud.and.arrow.up")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .disabled(count == 0 || working)
+                .hoverLabel("Upload the selected recordings: choose the cloud, then the size. Two are sent at a time.")
+                Button {
+                    working = true
+                    Task {
+                        await OnlineCopyPrompts.confirmAndDeleteOnlineCopies(of: selectedItems.map(\.url))
+                        working = false
+                    }
+                } label: {
+                    Label("Delete Online Copies", systemImage: "trash.slash")
+                }
+                .disabled(count == 0 || selectedWithOnlineCopy == 0 || working)
+                .hoverLabel(selectedWithOnlineCopy == 0
+                            ? "None of the selected recordings has an uploaded copy"
+                            : "Remove the uploaded copies of \(selectedWithOnlineCopy) selected \(selectedWithOnlineCopy == 1 ? "recording" : "recordings") from the cloud. The recordings stay on this Mac.")
+                Button(role: .destructive) {
+                    working = true
+                    Task {
+                        let toTrash = await OnlineCopyPrompts.confirmTrash(selectedItems.map(\.url))
+                        for url in toTrash { try? library.trash(url) }
+                        working = false
+                        if !toTrash.isEmpty { selection.subtract(toTrash) }
+                    }
+                } label: {
+                    Label("Move to Trash", systemImage: "trash")
+                }
+                .disabled(count == 0 || working)
+                .hoverLabel("Move the selected recordings to the Trash (you can restore them from there)")
+                Button("Done") { endSelecting() }
+                    .keyboardShortcut(.cancelAction)
+                    .hoverLabel("Leave selection mode")
+            }
+            .controlSize(.regular)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+        }
+        .background(.regularMaterial)
     }
 
     private var toolbar: some View {
@@ -127,6 +216,13 @@ struct LibraryView: View {
             TextField("Search recordings", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 220)
+            Button {
+                if selecting { endSelecting() } else { selecting = true }
+            } label: {
+                Label(selecting ? "Done" : "Select", systemImage: selecting ? "checkmark.circle.fill" : "checkmark.circle")
+            }
+            .disabled(library.items.isEmpty)
+            .hoverLabel(selecting ? "Leave selection mode" : "Select several recordings to delete them together")
             Button { NSWorkspace.shared.open(library.folder) } label: { Image(systemName: "folder") }
                 .hoverLabel("Open the recordings folder in Finder")
             Button {
@@ -173,6 +269,9 @@ struct LibraryView: View {
 
 private struct RecordingCard: View {
     let item: RecordingItem
+    var selecting = false
+    var selected = false
+    var onToggle: () -> Void = {}
     let onDelete: () -> Void
     @EnvironmentObject private var uploads: UploadManager
     @EnvironmentObject private var settings: AppSettings
@@ -184,14 +283,18 @@ private struct RecordingCard: View {
         // The preview is a real button (reachable with Tab); the status row sits beside it, not inside it,
         // so its action button is a separate control instead of a button nested in a button.
         VStack(alignment: .leading, spacing: 8) {
-            Button { WindowRouter.shared.showReview(item.url) } label: { preview }
+            Button {
+                if selecting { onToggle() } else { WindowRouter.shared.showReview(item.url) }
+            } label: { preview }
                 .buttonStyle(.plain)
-                .hoverLabel("Open \(item.title)")
+                .hoverLabel(selecting ? (selected ? "Untick \(item.title)" : "Tick \(item.title)") : "Open \(item.title)")
                 .accessibilityLabel(accessibilityText)
-                .accessibilityHint("Opens the recording. More actions in the context menu.")
+                .accessibilityHint(selecting ? "Selects or deselects this recording." : "Opens the recording. More actions in the context menu.")
+                .accessibilityAddTraits(selecting && selected ? .isSelected : [])
             HStack(spacing: 8) {
                 statusPill
                 Spacer()
+                Group {
                 actionButton
                 if !uploads.isUploading(item.url) {
                     Menu {
@@ -205,10 +308,24 @@ private struct RecordingCard: View {
                     .hoverLabel(uploads.record(for: item.url) == nil ? "Upload to… (choose cloud and size)" : "Upload again… (choose cloud and size)")
                     .accessibilityLabel(uploads.record(for: item.url) == nil ? "Upload to another cloud or size" : "Upload again with another cloud or size")
                 }
+                }
+                .disabled(selecting)   // while ticking recordings, the card's own buttons stay out of the way
             }
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(hovering ? 0.07 : 0.035)))
+        .background(RoundedRectangle(cornerRadius: 14).fill(selected ? Theme.accentSoft : Color.primary.opacity(hovering ? 0.07 : 0.035)))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? Theme.accent : .clear, lineWidth: 2))
+        .overlay(alignment: .topLeading) {
+            if selecting {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(selected ? Theme.accent : Color.white)
+                    .background(Circle().fill(selected ? Color.white : Color.black.opacity(0.35)).padding(2))
+                    .padding(16)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { hovering = $0 }
         .contextMenu { menu }
@@ -278,13 +395,18 @@ private struct RecordingCard: View {
 
     @ViewBuilder
     private var statusPill: some View {
-        if let state = uploads.state(for: item.url) {
+        if uploads.isDeletingOnline(item.url) {
+            pill("Deleting online copy…", .orange)
+        } else if let state = uploads.state(for: item.url) {
             switch state {
+            case .queued: pill("Queued", .secondary)
             case .preparing, .uploading: pill("Uploading", Theme.accent)
             case .failed: pill("Upload failed", .orange)
             }
         } else if uploads.record(for: item.url) != nil {
             pill("Shared", .green)
+        } else if uploads.hasOnlineCopy(item.url) {
+            pill("Link expired", .orange)
         } else {
             pill("On this Mac", .secondary)
         }
@@ -294,7 +416,7 @@ private struct RecordingCard: View {
     private var actionButton: some View {
         if let state = uploads.state(for: item.url) {
             switch state {
-            case .preparing, .uploading: Button("Cancel") { uploads.cancel(item.url) }
+            case .queued, .preparing, .uploading: Button("Cancel") { uploads.cancel(item.url) }
             case .failed: Button("Retry") { uploads.upload(item.url) }
             }
         } else if let record = uploads.record(for: item.url) {

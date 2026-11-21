@@ -82,6 +82,14 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         post(content)
     }
 
+    func uploadsFinished(done: Int, failed: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = failed == 0 ? "\(done) \(done == 1 ? "upload" : "uploads") finished" : "Uploads finished with \(failed) \(failed == 1 ? "error" : "errors")"
+        content.body = failed == 0 ? "Open the Library to copy the links." : "\(done) uploaded, \(failed) failed. Open the Library to retry."
+        content.sound = .default
+        post(content)
+    }
+
     func uploadFailed(title: String, message: String) {
         let content = UNMutableNotificationContent()
         content.title = "Upload failed"

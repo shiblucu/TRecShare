@@ -82,9 +82,11 @@ struct S3Client: Sendable {
         }
     }
 
+    /// Deletes an object. A missing object is fine (S3 answers 204; some services answer 404).
     func delete(key: String) async throws {
         let req = request("DELETE", key: key, payloadHash: SigV4.emptyPayloadHash)
         let (body, resp) = try await HTTP.send(req)
+        if resp.statusCode == 404 { return }
         try check(body, resp)
     }
 
@@ -282,7 +284,19 @@ struct SpacesUploader: Uploader {
         progress(1)
         return UploadResult(destination: UploadDestination.spaces.rawValue, link: link, videoURL: videoURL,
                             remoteID: videoKey, uploadedAt: Date(),
-                            expiresAt: isPublic ? nil : Date().addingTimeInterval(TimeInterval(Self.expirySeconds)))
+                            expiresAt: isPublic ? nil : Date().addingTimeInterval(TimeInterval(Self.expirySeconds)),
+                            account: account)
+    }
+
+    var account: String { "\(client.bucket)@\(client.endpoint)" }
+
+    /// Removes the video, poster and share page of one upload (they share one random folder).
+    func deleteUpload(_ result: UploadResult) async throws {
+        try UploadError.checkAccount(saved: result.account, current: account, what: "bucket")
+        let folder = try S3Validation.uploadFolder(forKey: result.remoteID)
+        for key in [result.remoteID ?? "", "\(folder)/poster.jpg", "\(folder)/index.html"] {
+            try await HTTP.withRetry { try await client.delete(key: key) }
+        }
     }
 
     func testConnection() async throws -> String {
@@ -296,6 +310,17 @@ struct SpacesUploader: Uploader {
 /// Strict checks for user-entered storage settings. They end up in the request's host name and
 /// object keys, so anything unexpected (user-info, ports in odd places, "..", spaces) is rejected.
 enum S3Validation {
+    /// The folder that holds one upload, from the video's key (for example `recordings/2026-11/demo-Ab3dE5.../demo.mp4`).
+    /// Refuses anything that isn't plain path segments, so a damaged or edited history file can't delete elsewhere.
+    static func uploadFolder(forKey key: String?) throws -> String {
+        let parts = (key ?? "").split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count >= 2, !parts.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }),
+              parts.allSatisfy({ $0.range(of: #"^[A-Za-z0-9._ -]+$"#, options: .regularExpression) != nil }) else {
+            throw UploadError("The saved location of this upload isn't valid, so it can't be deleted from here.")
+        }
+        return parts.dropLast().joined(separator: "/")
+    }
+
     static func bucket(_ raw: String) throws -> String {
         let b = raw.trimmed
         guard b.range(of: #"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"#, options: .regularExpression) != nil, !b.contains("..") else {

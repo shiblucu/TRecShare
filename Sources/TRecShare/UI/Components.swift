@@ -99,9 +99,9 @@ extension ButtonStyle where Self == BrandButtonStyle {
 
 /// "Upload again" choices: pick any set-up cloud destination and an upload size.
 /// The new upload replaces the saved link; the earlier copy stays where it was uploaded.
-struct ReuploadMenu: View {
-    let url: URL
-    @EnvironmentObject private var uploads: UploadManager
+/// Menu items for choosing a cloud destination and then an upload size. Used for one recording or a selection.
+struct UploadChoiceMenu: View {
+    let choose: (UploadDestination, UploadQuality) -> Void
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
@@ -109,7 +109,7 @@ struct ReuploadMenu: View {
             if settings.missingSetup(for: destination) == nil {
                 Menu {
                     ForEach(UploadQuality.allCases) { quality in
-                        Button(quality.title) { uploads.upload(url, to: destination, quality: quality) }
+                        Button(quality.title) { choose(destination, quality) }
                     }
                 } label: {
                     Label(destination.title, systemImage: destination.icon)
@@ -119,6 +119,25 @@ struct ReuploadMenu: View {
                     Label("\(destination.title) (set up in Settings)", systemImage: destination.icon)
                 }
             }
+        }
+    }
+}
+
+struct ReuploadMenu: View {
+    let url: URL
+    @EnvironmentObject private var uploads: UploadManager
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        UploadChoiceMenu { destination, quality in uploads.upload(url, to: destination, quality: quality) }
+        if uploads.hasOnlineCopy(url) {
+            Divider()
+            Button(role: .destructive) {
+                Task { await OnlineCopyPrompts.confirmAndDeleteOnlineCopy(url) }
+            } label: {
+                Label("Delete Online Copy…", systemImage: "trash.slash")
+            }
+            .disabled(uploads.isDeletingOnline(url))
         }
     }
 }
@@ -138,6 +157,8 @@ struct UploadStatusView: View {
         Group {
             if let state = uploads.state(for: url) {
                 switch state {
+                case .queued:
+                    progressRow("Waiting for other uploads…", nil)
                 case .preparing(let p):
                     progressRow("Preparing upload…", p)
                 case .uploading(let p):

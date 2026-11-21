@@ -15,7 +15,6 @@ struct ReviewView: View {
     @State private var info: MediaInfo?
     @State private var busy: String?
     @State private var message: String?
-    @State private var confirmDelete = false
     @State private var uploadTo: UploadDestination = .none
 
     private var fileURL: URL { currentURL ?? url }
@@ -54,7 +53,9 @@ struct ReviewView: View {
                         .fixedSize()
                     Button { NSWorkspace.shared.activateFileViewerSelecting([fileURL]) } label: { Label("Show in Finder", systemImage: "folder") }
                     Spacer()
-                    Button(role: .destructive) { confirmDelete = true } label: { Label("Move to Trash", systemImage: "trash") }
+                    Button(role: .destructive) {
+                        Task { if await OnlineCopyPrompts.confirmTrash(fileURL) { delete() } }
+                    } label: { Label("Move to Trash", systemImage: "trash") }
                 }
                 .disabled(busy != nil)
 
@@ -74,11 +75,6 @@ struct ReviewView: View {
         // Moved to the Trash from the Library or elsewhere: don't leave a window open on a missing file.
         .onReceive(NotificationCenter.default.publisher(for: .recordingTrashed)) { note in
             if (note.object as? URL) == fileURL { WindowRouter.shared.close("review") }
-        }
-        .confirmationDialog("Move this recording to the Trash?", isPresented: $confirmDelete) {
-            Button("Move to Trash", role: .destructive, action: delete)
-        } message: {
-            Text("You can restore it from the Trash. Uploaded copies stay online.")
         }
     }
 
@@ -129,7 +125,8 @@ struct ReviewView: View {
                 }
             }
             UploadStatusView(url: fileURL, destination: uploadsSetUp ? uploadTo : nil)
-            if uploads.state(for: fileURL) == nil, uploads.record(for: fileURL) != nil {
+            if uploads.state(for: fileURL) == nil, uploads.hasOnlineCopy(fileURL) {
+                HStack(spacing: 14) {
                 Menu {
                     ReuploadMenu(url: fileURL)
                 } label: {
@@ -139,6 +136,18 @@ struct ReviewView: View {
                 .fixedSize()
                 .controlSize(.small)
                 .hoverLabel("Uploads a new copy. The new link replaces the saved one; the earlier copy stays where it was uploaded.")
+                Button(role: .destructive) {
+                    Task { await OnlineCopyPrompts.confirmAndDeleteOnlineCopy(fileURL) }
+                } label: {
+                    Label(uploads.isDeletingOnline(fileURL) ? "Deleting…" : "Delete Online Copy…", systemImage: "trash.slash")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.red)
+                .controlSize(.small)
+                .disabled(uploads.isDeletingOnline(fileURL))
+                .hoverLabel("Removes the uploaded copy from the cloud so its link stops working. The recording on this Mac stays.")
+                Spacer(minLength: 0)
+                }
             }
         }
         .padding(12)

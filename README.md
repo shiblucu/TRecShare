@@ -240,15 +240,48 @@ Opens after each recording (turn off in Settings). It lets you:
   Google Drive: anyone with the link or only people you share it with), or pick another upload size from the
   arrow next to the button. The "who can watch" choice also becomes your default in Settings.
 - **Save Smaller Copy**: 1440p, 1080p or 720p next to the original.
-- **Show in Finder** or **Move to Trash**.
+- **Upload again** to another cloud or size, and **Delete Online Copy…** (see below) once it has been uploaded.
+- **Show in Finder** or **Move to Trash**. When the recording has an online copy, the Trash dialog has a box
+  "Also delete the online copy" (off by default).
+
+### Selecting several recordings
+In the Library, press **Select** in the toolbar, then click cards to tick them (or **Select All** / **Select None**
+for everything shown by the current filter). A bar at the bottom offers:
+- **Upload**: pick a cloud (Spaces, Google Drive or your server) and then a size (Original, 1440p, 1080p or 720p) for
+  all ticked recordings. Two are prepared and sent at a time; the rest show **Queued** and can be cancelled one by one.
+  You get one notification when the whole batch is done, instead of one per recording, and the links are not copied
+  to the clipboard (copy each from its card). Recordings that already have an uploaded copy: you choose between
+  uploading them again (the earlier copy stays in your storage) or skipping them.
+- **Delete Online Copies**: removes the uploaded copies of the ticked recordings from the cloud (recordings with no
+  online copy are skipped). The recordings stay on this Mac.
+- **Move to Trash**: asks first, with a box "Also delete the online copies" (off by default). If an online copy can't
+  be deleted, that recording is kept and you are told which one and why.
+- **Done** (or **Esc**) leaves selection mode.
+
+### Deleting an online copy
+Open the cloud button on a Library card (or right-click it, or use the button under the link in the Review window)
+and choose **Delete Online Copy…**. After you confirm, the uploaded video and its share page are removed from your
+storage and the link stops working. The recording on this Mac is not touched, and the card goes back to
+"On this Mac".
+
+| Destination | What happens |
+|---|---|
+| DigitalOcean Spaces / S3 | The video, poster and share page are deleted. This can't be undone. |
+| Google Drive | The file moves to your Drive trash (restorable for 30 days). |
+| Your own server | SFTP: the files and folder are removed. HTTP: needs DELETE (WebDAV) enabled on your server. |
+
+Only the latest upload of a recording is remembered, so uploading again leaves the earlier copy in your storage
+(delete it there yourself). TRecShare refuses to delete when Settings now point to a different bucket, Google
+account or server than the one the copy was uploaded to. A recording whose private link has expired shows
+"Link expired" and can still be deleted online.
 
 ### Library
 Menu-bar icon → **Library** (also **⌘L** while a TRecShare window is open). The sidebar filters recordings:
 **All**, **Shared**, **On this Mac only** and **Upload failed**, each with a count. Each card shows a thumbnail,
 length, size, a status (Shared, On this Mac, Uploading, Upload failed) and a one-click action (Copy link,
 Upload, Retry or Cancel). Retry always goes to the destination that failed. Click a card to open it.
-Right-click for: open, play in QuickTime, copy link, open link, upload / upload again, show in Finder,
-move to Trash. "Upload failed" is not remembered after you quit TRecShare.
+Right-click for: open, play in QuickTime, copy link, open link, upload / upload again, delete online copy,
+show in Finder, move to Trash. "Upload failed" is not remembered after you quit TRecShare.
 
 ---
 
@@ -507,6 +540,8 @@ Set **Settings → Recording → Quality** to **Native**. When sharing, use **10
 | "The server refused the upload (401)" | The token is wrong. |
 | "(405)" / "(404)" | The upload URL is wrong, or WebDAV/PUT isn't enabled. |
 | "(413)" | Raise the server's upload size limit (`client_max_body_size`). |
+| "The server doesn't allow deleting files (405)" | Enable DELETE (WebDAV) on your server, or delete the folder there yourself. |
+| "This copy was uploaded to … but Settings now use …" | Switch Settings back to the bucket, account or server it was uploaded to, then delete again. |
 | "The Internet connection appears to be offline" | Uploads stop after a few quick retries instead of waiting. Reconnect, then press **Retry**. |
 | "Recovered an unfinished recording" | TRecShare was closed unexpectedly while recording. The recovered video is in the Library as "… (recovered)". |
 
